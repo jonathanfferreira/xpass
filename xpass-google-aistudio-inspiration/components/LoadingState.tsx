@@ -1,6 +1,15 @@
 import React from 'react';
 import Skeleton from './Skeleton';
 
+/**
+ * A full-screen loading state component for the main dashboard.
+ *
+ * Composes multiple Skeleton components to mimic the layout of the app
+ * while data is being fetched.
+ *
+ * @component
+ * @returns {JSX.Element} The rendered LoadingState component.
+ */
 const LoadingState: React.FC = () => {
   return (
     <div className="flex flex-col space-y-8 px-6 pt-8 pb-36">

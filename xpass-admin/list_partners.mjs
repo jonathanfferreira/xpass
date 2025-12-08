@@ -14,6 +14,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+/**
+ * Lists all pending partners.
+ *
+ * Queries the 'partners' collection for documents with status 'PENDING'
+ * and logs their details to the console.
+ *
+ * @returns {Promise<void>} Resolves when the list is processed.
+ */
 async function listPending() {
     console.log("Searching for PENDING partners...");
     try {

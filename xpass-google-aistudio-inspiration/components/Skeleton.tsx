@@ -4,6 +4,16 @@ interface SkeletonProps {
   className?: string;
 }
 
+/**
+ * A loading skeleton component.
+ *
+ * Displays a pulsating placeholder with a shimmer effect to indicate loading state.
+ *
+ * @component
+ * @param {SkeletonProps} props - The component props.
+ * @param {string} [props.className] - Additional CSS classes to style the skeleton.
+ * @returns {JSX.Element} The rendered Skeleton component.
+ */
 const Skeleton: React.FC<SkeletonProps> = ({ className }) => {
   return (
     <div 

@@ -6,6 +6,18 @@ interface FoodScannerProps {
   onScanComplete: (calories: number, foodName: string) => void;
 }
 
+/**
+ * A camera interface for scanning food and estimating calories.
+ *
+ * Simulates an AI vision analysis process (like Gemini Vision) to identify food
+ * and provide nutritional information (calories, macros).
+ *
+ * @component
+ * @param {FoodScannerProps} props - The component props.
+ * @param {Function} props.onClose - Callback to close the scanner.
+ * @param {Function} props.onScanComplete - Callback executed when scanning is finished, passing calories and food name.
+ * @returns {JSX.Element} The rendered FoodScanner component.
+ */
 const FoodScanner: React.FC<FoodScannerProps> = ({ onClose, onScanComplete }) => {
   const [step, setStep] = useState<'camera' | 'analyzing' | 'result'>('camera');
   const [scannedData, setScannedData] = useState({ name: '', calories: 0, macros: { p: 0, c: 0, f: 0 } });

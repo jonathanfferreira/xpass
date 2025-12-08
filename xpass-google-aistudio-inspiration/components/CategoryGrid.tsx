@@ -7,6 +7,19 @@ interface CategoryGridProps {
   onSelect: (id: string) => void;
 }
 
+/**
+ * A grid of category buttons.
+ *
+ * Displays a list of categories as clickable cards with icons.
+ * Highlights the currently selected category.
+ *
+ * @component
+ * @param {CategoryGridProps} props - The component props.
+ * @param {Category[]} props.categories - The list of categories to display.
+ * @param {string} props.selectedCategory - The ID or name of the currently selected category.
+ * @param {Function} props.onSelect - Callback function to handle category selection.
+ * @returns {JSX.Element} The rendered CategoryGrid component.
+ */
 const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, selectedCategory, onSelect }) => {
   return (
     <div className="grid grid-cols-3 gap-3">

@@ -4,6 +4,15 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from 'recharts';
 import { DollarSign, ArrowUpRight, ArrowDownLeft, TrendingUp, Wallet } from 'lucide-react';
 
+/**
+ * A dashboard component displaying financial metrics.
+ *
+ * Fetches and displays GMV (Gross Merchandise Value), payouts, and net revenue.
+ * Also lists recent transactions.
+ *
+ * @component
+ * @returns {JSX.Element} The rendered FinancialView component.
+ */
 export default function FinancialView() {
     const [loading, setLoading] = useState(true);
     const [metrics, setMetrics] = useState({

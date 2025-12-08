@@ -6,6 +6,17 @@ interface StudioCardProps {
   studio: Studio;
 }
 
+/**
+ * A card component representing a fitness studio or class.
+ *
+ * Displays the studio's image, rating, name, category, distance, and credit cost.
+ * Includes a functionality to toggle the studio as a favorite.
+ *
+ * @component
+ * @param {StudioCardProps} props - The component props.
+ * @param {Studio} props.studio - The studio data to display.
+ * @returns {JSX.Element} The rendered StudioCard component.
+ */
 const StudioCard: React.FC<StudioCardProps> = ({ studio }) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);

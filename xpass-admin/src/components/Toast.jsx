@@ -1,6 +1,17 @@
 import React, { useEffect } from 'react';
 import { CheckCircle, AlertCircle, X, Info } from 'lucide-react';
 
+/**
+ * A container for displaying toast notifications.
+ *
+ * Renders a list of ToastItem components.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Array<Object>} props.toasts - Array of toast objects.
+ * @param {Function} props.removeToast - Callback to remove a toast by ID.
+ * @returns {JSX.Element} The rendered ToastContainer.
+ */
 const ToastContainer = ({ toasts, removeToast }) => {
     return (
         <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
@@ -11,6 +22,21 @@ const ToastContainer = ({ toasts, removeToast }) => {
     );
 };
 
+/**
+ * An individual toast notification component.
+ *
+ * Displays a message with an icon and auto-dismisses after a timeout.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Object} props.toast - The toast data.
+ * @param {string} props.toast.id - Unique ID of the toast.
+ * @param {'success'|'error'|'info'} props.toast.type - Type of the toast.
+ * @param {string} props.toast.title - Title of the toast.
+ * @param {string} [props.toast.message] - Optional message body.
+ * @param {Function} props.onRemove - Callback to remove the toast.
+ * @returns {JSX.Element} The rendered ToastItem.
+ */
 const ToastItem = ({ toast, onRemove }) => {
     useEffect(() => {
         const timer = setTimeout(() => {

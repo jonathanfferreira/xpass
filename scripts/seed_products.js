@@ -54,6 +54,13 @@ const PRODUCTS = [
     }
 ];
 
+/**
+ * Seeds the database with initial products.
+ *
+ * Uses Firebase Admin SDK to write a batch of product documents to the 'products' collection.
+ *
+ * @returns {Promise<void>} Resolves when the seeding is complete.
+ */
 async function seedProducts() {
     console.log('🌱 Seeding products...');
     const batch = db.batch();

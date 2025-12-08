@@ -6,6 +6,18 @@ interface FeatureCardProps {
   onClick: () => void;
 }
 
+/**
+ * A featured card component for categories.
+ *
+ * Displays a category with a background image, an icon, and the category name.
+ * Designed to highlight popular or featured categories.
+ *
+ * @component
+ * @param {FeatureCardProps} props - The component props.
+ * @param {Category} props.category - The category data to display.
+ * @param {Function} props.onClick - Callback function when the card is clicked.
+ * @returns {JSX.Element} The rendered FeatureCard component.
+ */
 const FeatureCard: React.FC<FeatureCardProps> = ({ category, onClick }) => {
   const Icon = category.icon;
   

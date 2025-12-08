@@ -6,6 +6,17 @@ interface ProductCardProps {
   product: Product;
 }
 
+/**
+ * A card component representing a product in the shop.
+ *
+ * Displays the product image, tags, brand, name, and price.
+ * Includes a quick add-to-cart button that appears on hover.
+ *
+ * @component
+ * @param {ProductCardProps} props - The component props.
+ * @param {Product} props.product - The product data to display.
+ * @returns {JSX.Element} The rendered ProductCard component.
+ */
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <div className="group relative flex flex-col bg-onyx-900 rounded-xl border border-white/5 overflow-hidden transition-all duration-300 hover:border-brand-500/50 hover:shadow-[0_0_20px_rgba(255,82,0,0.15)]">

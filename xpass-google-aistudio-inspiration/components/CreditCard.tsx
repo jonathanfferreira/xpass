@@ -5,6 +5,17 @@ interface CreditCardProps {
   credits: number;
 }
 
+/**
+ * A component displaying the user's available credits.
+ *
+ * Shows the current credit balance with a visual "energy core" style.
+ * Includes a button to recharge credits.
+ *
+ * @component
+ * @param {CreditCardProps} props - The component props.
+ * @param {number} props.credits - The number of credits available.
+ * @returns {JSX.Element} The rendered CreditCard component.
+ */
 const CreditCard: React.FC<CreditCardProps> = ({ credits }) => {
   return (
     <div className="relative w-full overflow-hidden rounded-3xl bg-onyx-900 border border-white/5 shadow-2xl group">

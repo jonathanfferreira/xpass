@@ -11,6 +11,16 @@ interface Message {
   data?: any;
 }
 
+/**
+ * An AI-powered chat interface component (Gemini Coach).
+ *
+ * Allows users to interact with an AI assistant to find gyms, get workout advice,
+ * or analyze equipment via image upload simulation.
+ * Handles text input, simulated image analysis, and displays rich messages (cards).
+ *
+ * @component
+ * @returns {JSX.Element} The rendered AICoach chat widget.
+ */
 const AICoach: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState('');

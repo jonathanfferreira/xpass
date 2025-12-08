@@ -24,6 +24,20 @@ const JWT_SECRET = process.env.JWT_SECRET || functions.config().jwt?.secret || "
 // 2. BOOKING SYSTEM (AGENDAMENTO DE AULAS) 📅
 // ============================================================================
 
+/**
+ * Books a class for a user.
+ *
+ * Validates the user's authentication, credit balance, class capacity, and prior bookings.
+ * If successful, deducts credits, increments the booked count, creates a booking record,
+ * and logs the transaction.
+ *
+ * @param {Object} request - The request object.
+ * @param {Object} request.auth - Authentication data.
+ * @param {Object} request.data - The data passed to the function.
+ * @param {string} request.data.classId - The ID of the class to book.
+ * @returns {Promise<Object>} Returns an object with success status and a message.
+ * @throws {HttpsError} Throws an error if unauthenticated, class/user not found, class full, insufficient credits, or already booked.
+ */
 exports.bookClass = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Você precisa estar logado para agendar.');
@@ -91,6 +105,21 @@ exports.bookClass = onCall({ cors: true }, async (request) => {
 // O Extension "Run Payments with Stripe" escreve em customers/{uid}/payments/{paymentId}
 // Nós escutamos essa escrita para liberar os créditos.
 
+/**
+ * Synchronizes Stripe payments with user credits.
+ *
+ * Triggered when a document is written to the `customers/{uid}/payments/{paymentId}` path.
+ * Verifies if the payment succeeded and if it hasn't been processed yet.
+ * If valid, calculates the credits to add and updates the user's balance and transaction history.
+ *
+ * @param {Object} event - The Cloud Function event object.
+ * @param {Object} event.data - The data associated with the event.
+ * @param {Object} event.data.after - The document snapshot after the write.
+ * @param {Object} event.params - The parameters from the wildcard path.
+ * @param {string} event.params.uid - The user ID.
+ * @param {string} event.params.paymentId - The payment ID.
+ * @returns {Promise<void>} Resolves when the synchronization is complete.
+ */
 exports.syncStripePayment = onDocumentWritten("customers/{uid}/payments/{paymentId}", async (event) => {
     // Handling logs and data retrieval safely
     const snapshot = event.data?.after;
@@ -178,6 +207,22 @@ exports.syncStripePayment = onDocumentWritten("customers/{uid}/payments/{payment
     }
 });
 
+/**
+ * Creates a Stripe Checkout session for purchasing credits.
+ *
+ * Ensures the user is authenticated, creates a Stripe customer if one doesn't exist,
+ * and generates a checkout session URL.
+ *
+ * @param {Object} request - The request object.
+ * @param {Object} request.auth - Authentication data.
+ * @param {Object} request.data - The data passed to the function.
+ * @param {number} request.data.amount - The amount of credits to purchase.
+ * @param {string} [request.data.currency='brl'] - The currency code (default: 'brl').
+ * @param {string} request.data.successUrl - The URL to redirect to on success.
+ * @param {string} request.data.cancelUrl - The URL to redirect to on cancellation.
+ * @returns {Promise<Object>} Returns the session ID and the session URL.
+ * @throws {HttpsError} Throws an error if unauthenticated, invalid amount, or internal error.
+ */
 exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
     // Logs de Debug
     console.log("🔍 [createStripeCheckout] Iniciando...");
@@ -274,6 +319,16 @@ exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
 // 3. SECURITY & ACCESS CONTROL (ANTI-FRAUD)
 // ============================================================================
 
+/**
+ * Generates a temporary JWT access token for QR code access.
+ *
+ * The token contains the user ID and is valid for a short duration (e.g., 2 minutes).
+ *
+ * @param {Object} request - The request object.
+ * @param {Object} request.auth - Authentication data.
+ * @returns {Promise<Object>} Returns an object containing the generated token.
+ * @throws {HttpsError} Throws an error if unauthenticated.
+ */
 exports.generateAccessCode = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login necessário.');
@@ -292,6 +347,19 @@ exports.generateAccessCode = onCall({ cors: true }, async (request) => {
     return { token };
 });
 
+/**
+ * Validates a JWT access token for QR code access.
+ *
+ * Verifies the token, retrieves user data, records a check-in, and returns user profile info.
+ * Designed to be called by a partner app to validate a user's entry.
+ *
+ * @param {Object} request - The request object.
+ * @param {Object} request.auth - Authentication data.
+ * @param {Object} request.data - The data passed to the function.
+ * @param {string} request.data.token - The JWT token to validate.
+ * @returns {Promise<Object>} Returns success status and user profile data.
+ * @throws {HttpsError} Throws an error if unauthenticated, token is invalid/expired, or user not found.
+ */
 exports.validateAccessCode = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login necessário para validar acesso.');
@@ -345,6 +413,18 @@ exports.validateAccessCode = onCall({ cors: true }, async (request) => {
 // 4. NOTIFICATIONS (PUSH)
 // ============================================================================
 
+/**
+ * Sends a push notification when a new booking is created.
+ *
+ * Triggered when a document is created in the `bookings/{bookingId}` path.
+ * Retreives the user's FCM tokens and sends a multicast notification.
+ * Removes invalid tokens from the user's profile.
+ *
+ * @param {Object} event - The Cloud Function event object.
+ * @param {Object} event.data - The data associated with the event.
+ * @param {Object} event.data.data - The document snapshot data.
+ * @returns {Promise<void>} Resolves when the notification is sent (or if no tokens found).
+ */
 exports.sendBookingNotification = onDocumentCreated("bookings/{bookingId}", async (event) => {
     const booking = event.data.data();
     if (!booking) return; // Se deletado
@@ -399,6 +479,19 @@ exports.sendBookingNotification = onDocumentCreated("bookings/{bookingId}", asyn
 // 5. FUNCIONALIDADES DA LOJA (SHOP) 🛍️
 // ============================================================================
 
+/**
+ * Processes a product purchase.
+ *
+ * Validates stock availability and user credit balance.
+ * If successful, deducts credits, decrements stock, and logs the transaction.
+ *
+ * @param {Object} request - The request object.
+ * @param {Object} request.auth - Authentication data.
+ * @param {Object} request.data - The data passed to the function.
+ * @param {string} request.data.productId - The ID of the product to buy.
+ * @returns {Promise<Object>} Returns success status, new credit balance, and a message.
+ * @throws {HttpsError} Throws an error if unauthenticated, product/user not found, out of stock, or insufficient credits.
+ */
 exports.buyProduct = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Você precisa estar logado para comprar.');
@@ -448,6 +541,15 @@ exports.buyProduct = onCall({ cors: true }, async (request) => {
     });
 });
 
+/**
+ * Seeds the database with initial products.
+ *
+ * Creates or overwrites a set of predefined products in the `products` collection.
+ * Useful for initializing the shop with data.
+ *
+ * @param {Object} request - The request object.
+ * @returns {Promise<Object>} Returns success status and a message.
+ */
 exports.seedProducts = onCall({ cors: true }, async (request) => {
     const PRODUCTS = [
         {
@@ -507,6 +609,23 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 // TO DO: Mover para variável de ambiente real (functions config)
 const GEMINI_API_KEY = "AIzaSyDzZnPaob33o1V5A3I1PIqbO5x35WzIkwc";
 
+/**
+ * Interacts with the AI Coach (powered by Gemini).
+ *
+ * Generates a response based on the user's message and context (credits, last workout, etc.).
+ * If the API key is not configured, returns a mock response.
+ *
+ * @param {Object} request - The request object.
+ * @param {Object} request.auth - Authentication data.
+ * @param {Object} request.data - The data passed to the function.
+ * @param {string} request.data.message - The user's message.
+ * @param {Object} [request.data.context={}] - Contextual information about the user.
+ * @param {string} [request.data.context.userName] - The user's name.
+ * @param {number} [request.data.context.userCredits] - The user's credit balance.
+ * @param {string} [request.data.context.lastWorkout] - The user's last workout.
+ * @returns {Promise<Object>} Returns the AI's response and a flag indicating if it's a mock response.
+ * @throws {HttpsError} Throws an error if unauthenticated or internal error occurs.
+ */
 exports.askAICoach = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login necessário para falar com o Coach.');
