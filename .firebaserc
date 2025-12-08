@@ -1,0 +1,30 @@
+{
+  "projects": {
+    "default": "tranquil-door-479317-a2"
+  },
+  "targets": {
+    "tranquil-door-479317-a2": {
+      "hosting": {
+        "student": [
+          "xpass-student"
+        ],
+        "partner": [
+          "xpass-partner"
+        ],
+        "admin": [
+          "xpass-admin"
+        ],
+        "landing": [
+          "xpass-landing"
+        ]
+      }
+    }
+  },
+  "etags": {
+    "tranquil-door-479317-a2": {
+      "extensionInstances": {
+        "firestore-stripe-payments": "62086a147d0d443e112163da7ce98ce56e8b1de0d3d551bc08f12f06a533c245"
+      }
+    }
+  }
+}

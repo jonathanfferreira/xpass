@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper to check if user is accessing their own document
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Helper to check if the request is NOT modifying sensitive fields
+    // (Credits, XP, Role, Subscription can ONLY be changed by Cloud Functions)
+    function notUpdatingSensitiveFields() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['credits', 'xp', 'role', 'subscription']);
+    }
+
+    // ========================================================================
+    // 1. PUBLIC / READ-ONLY COLLECTIONS
+    // ========================================================================
+
+    // Products (Shop): Public Read, Write only via Admin (Console) or Seed Function
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false; // Managed by Admin SDK / Cloud Functions
+    }
+
+    // Leads (Landing Page)
+    match /leads/{leadId} {
+      allow create: if true; // Public can create leads
+      allow read, update, delete: if false; // Only Admin can see
+    }
+
+    // ========================================================================
+    // 2. USER DATA & WALLET
+    // ========================================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      
+      // CREATE: User can create their profile on signup
+      allow create: if isOwner(userId);
+
+      // UPDATE: User can edit profile (photo, name), BUT NOT CREDITS
+      allow update: if isOwner(userId) && notUpdatingSensitiveFields();
+
+      // DELETE: User typically doesn't delete, but let's allow for GDPR compliance
+      // allow delete: if isOwner(userId); 
+    }
+
+    match /customers/{userId} {
+       allow read, write: if isOwner(userId); // Stripe Extension integration
+    }
+
+    // ========================================================================
+    // 3. CORE BUSINESS LOGIC (Classes & Bookings)
+    // ========================================================================
+
+    // Partners: Public Read (Directory), Write restricted (Future: Admin Only)
+    match /partners/{partnerId} {
+      allow read: if true;
+      allow write: if false; // Managed by Admin
+    }
+
+    // Classes: Public Read (Schedule), Write by Partner (Owner)
+    match /classes/{classId} {
+      allow read: if true;
+      // Partners create classes via App (Client SDK). 
+      // Ideally we would verify if request.auth.uid is the partner, but for now:
+      allow create, update: if isSignedIn(); 
+      allow delete: if isSignedIn();
+    }
+
+    // Bookings: CRITICAL SECURITY 🛑
+    // Clients CANNOT write bookings directly (Must use bookClass Cloud Function)
+    match /bookings/{bookingId} {
+      // Read own bookings - allow list query when filtered by userId
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.partnerId == request.auth.uid
+      );
+      
+      // Allow create for authenticated users (for MVP demo - real would use Cloud Function)
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      
+      // UPDATE/DELETE: Still restricted
+      allow update, delete: if false;
+    }
+
+    // Transactions: Audit Log (Read Only)
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Only Cloud Functions create transactions
+    }
+
+    // ========================================================================
+    // 4. DEFAULT BLOCK
+    // ========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

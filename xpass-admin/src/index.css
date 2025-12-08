@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+    --font-display: 'Chillax', sans-serif;
+    --font-condensed: 'Steelfish', sans-serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-heading: 'Chillax', sans-serif;
+
+    --color-onyx-50: #f9fafb;
+    --color-onyx-100: #f3f4f6;
+    --color-onyx-200: #e5e7eb;
+    --color-onyx-300: #d1d5db;
+    --color-onyx-400: #9ca3af;
+    --color-onyx-500: #6b7280;
+    --color-onyx-600: #4b5563;
+    --color-onyx-700: #374151;
+    --color-onyx-800: #1f2937;
+    --color-onyx-900: #111827;
+    --color-onyx-950: #030712;
+
+    --color-brand-50: #fff7ed;
+    --color-brand-100: #ffedd5;
+    --color-brand-200: #fed7aa;
+    --color-brand-300: #fdba74;
+    --color-brand-400: #fb923c;
+    --color-brand-500: #FF5200;
+    --color-brand-600: #ea580c;
+    --color-brand-700: #c2410c;
+    --color-brand-800: #9a3412;
+    --color-brand-900: #7c2d12;
+    --color-brand-950: #431407;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

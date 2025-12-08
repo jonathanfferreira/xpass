@@ -1,0 +1,96 @@
+# ========================================
+# XPASS - Git Ignore
+# ========================================
+
+# ==========================================
+# 🔐 SENSITIVE DATA - NEVER COMMIT!
+# ==========================================
+.stripe-config.txt
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+.env*
+secrets/
+**/serviceAccountKey.json
+**/firebase-adminsdk*.json
+**/*-credentials.json
+
+# ==========================================
+# 📦 Dependencies
+# ==========================================
+node_modules/
+**/node_modules/
+
+# ==========================================
+# 🏗️ Build Outputs
+# ==========================================
+dist/
+**/dist/
+build/
+**/build/
+.output/
+**/.output/
+
+# ==========================================
+# 🔥 Firebase
+# ==========================================
+.firebase/
+**/.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
+.firebaserc.bak
+
+# ==========================================
+# 📝 Logs
+# ==========================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ==========================================
+# 💻 IDE / Editor
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# 🧪 Testing
+# ==========================================
+coverage/
+**/coverage/
+.nyc_output/
+
+# ==========================================
+# 📦 Package Manager
+# ==========================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ==========================================
+# 🔧 Misc
+# ==========================================
+*.local
+.cache/
+**/.cache/
+*.tsbuildinfo
+.eslintcache
+
+# ==========================================
+# 🎬 Generated Assets
+# ==========================================
+*.webp
+*.mp4
+recordings/

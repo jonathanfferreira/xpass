@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "tranquil-door-479317-a2"
+  },
+  "targets": {
+    "tranquil-door-479317-a2": {
+      "hosting": {
+        "admin": [
+          "xpass-admin"
+        ]
+      }
+    }
+  }
+}

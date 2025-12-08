@@ -1,0 +1,65 @@
+query ListPartners @auth(level: PUBLIC) {
+  partners {
+    id
+    name
+    category
+    basePrice
+    imageUrl
+    address
+    latitude
+    longitude
+  }
+}
+
+query GetUserProfile($id: String!) @auth(level: USER) {
+  user(id: $id) {
+    id
+    name
+    credits
+    role
+  }
+}
+
+query ListUserBookings($id: String!) @auth(level: USER) {
+  bookings(where: {user: {id: {eq: $id}}}, orderBy: [{createdAt: DESC}]) {
+    id
+    status
+    cost
+    createdAt
+    class {
+      name
+      startTime
+      endTime
+      partner {
+        name
+        address
+      }
+    }
+  }
+}
+
+query ListClassesByPartner($partnerId: UUID!) @auth(level: PUBLIC) {
+  classes(where: {partner: {id: {eq: $partnerId}}}, orderBy: [{startTime: ASC}]) {
+    id
+    name
+    startTime
+    endTime
+    capacity
+    bookedCount
+    offPeakPrice
+  }
+}
+
+query GetPartnerById($id: UUID!) @auth(level: PUBLIC) {
+  partner(id: $id) {
+    id
+    name
+    category
+    description
+    imageUrl
+    basePrice
+    address
+    latitude
+    longitude
+  }
+}

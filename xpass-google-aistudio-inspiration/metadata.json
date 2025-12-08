@@ -1,0 +1,8 @@
+{
+  "name": "XPASS - Access the Best Studios",
+  "description": "A premium B2C fitness credit app allowing users to access gyms and studios worldwide.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

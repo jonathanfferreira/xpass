@@ -1,0 +1,7 @@
+(node:22020) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+I1204 09:52:23.863915   21164 codegen.go:80] [connector "xpass-app" javascriptSdk] Generating sources into "D:\\xpass\\xpass-app-aluno\\src\\lib\\dataconnect"
+I1204 09:52:23.873076   21164 collector.go:107] connector "xpass-app" javascriptSdk wrote into "D:\\xpass\\xpass-app-aluno\\src\\lib\\dataconnect"
+Generated sources: esm\package.json [17B] package.json [631B] .guides/usage.md [1627B] .guides/setup.md [576B] .guides/config.json [236B] index.d.ts [7353B] esm\index.esm.js [3050B] index.cjs.js [3506B] README.md [34918B] 
+I1204 09:52:23.873076   21164 installsdk.go:138] generate.javascriptSdk.packageJsonDir is not specified, skipping automatic installation of package
+[32m[1m+  dataconnect:[22m[39m Successfully Generated SDKs for services: [1mxpass-backend[22m

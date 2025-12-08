@@ -1,0 +1,5 @@
+connectorId: "xpass-app"
+generate:
+  javascriptSdk:
+    outputDir: "../../xpass-app-aluno/src/lib/dataconnect"
+    package: "@xpass/backend"

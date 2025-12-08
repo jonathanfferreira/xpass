@@ -1,0 +1,18 @@
+mutation CreateUser($id: String!, $name: String!, $email: String!) @auth(level: PUBLIC) {
+  user_insert(data: {
+    id: $id,
+    name: $name,
+    email: $email,
+    role: "student",
+    credits: 0
+  })
+}
+
+mutation CreateBooking($userId: String!, $classId: UUID!, $cost: Int!) @auth(level: USER) {
+  booking_insert(data: {
+    user: { id: $userId },
+    class: { id: $classId },
+    cost: $cost,
+    status: "CONFIRMED"
+  })
+}

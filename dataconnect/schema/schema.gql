@@ -1,0 +1,87 @@
+# XPASS Data Connect Schema
+
+type User @table(key: ["id"]) {
+  id: String! @col(name: "uid")
+  name: String!
+  email: String!
+  photoUrl: String
+  role: String! # 'student', 'partner', 'admin'
+  credits: Int! @default(value: 0)
+  xp: Int @default(value: 0)
+  totalCheckins: Int @default(value: 0)
+  stripeCustomerId: String
+}
+
+type Partner @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  category: String!
+  description: String
+  imageUrl: String
+  basePrice: Int!
+  latitude: Float!
+  longitude: Float!
+  address: String!
+  revenue: Float @default(value: 0)
+  checkins: Int @default(value: 0)
+}
+
+type Class @table {
+  id: UUID! @default(expr: "uuidV4()")
+  partner: Partner!
+  name: String!
+  startTime: Timestamp!
+  endTime: Timestamp!
+  capacity: Int!
+  bookedCount: Int! @default(value: 0)
+  offPeakPrice: Int
+}
+
+type Booking @table {
+  id: UUID! @default(expr: "uuidV4()")
+  user: User!
+  class: Class!
+  status: String!
+  cost: Int!
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type UserSubscription @table {
+  id: UUID! @default(expr: "uuidV4()")
+  user: User!
+  planId: String!
+  status: String!
+  provider: String!
+  externalId: String
+  stripeSubscriptionId: String
+  stripePriceId: String
+  currentPeriodStart: Timestamp!
+  currentPeriodEnd: Timestamp!
+  rolloverCap: Int @default(value: 0)
+}
+
+type Transaction @table {
+  id: UUID! @default(expr: "uuidV4()")
+  user: User!
+  type: String!
+  amount: Int!
+  value: Float
+  provider: String
+  stripePaymentId: String
+  stripePaymentIntentId: String
+  paymentId: String
+  subscriptionId: String
+  relatedBooking: Booking
+  timestamp: Timestamp! @default(expr: "request.time")
+}
+
+type Checkin @table {
+  id: UUID! @default(expr: "uuidV4()")
+  partner: Partner!
+  student: User!
+  studentName: String
+  amount: Float!
+  timestamp: Timestamp! @default(expr: "request.time")
+  status: String!
+  method: String!
+}
