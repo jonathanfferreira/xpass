@@ -123,7 +123,13 @@ O XPASS é uma plataforma que conecta alunos a academias parceiras usando um sis
    - [x] Configuração do Jest
    - [x] Testes para `bookStudio` (15 testes)
    - [x] Testes para `confirmPayment` (18 testes)
-   - [ ] Testes de integração (futuro)
+   - [x] Testes para `geofencing` (12+ testes)
+
+6. **🛡️ Geofencing (Anti-Fraude)**
+   - [x] Fórmula Haversine para cálculo de distância
+   - [x] Validação de localização no check-in (150m)
+   - [x] Mensagem de erro com distância
+   - [x] Notificação de check-in realizado
 
 ---
 

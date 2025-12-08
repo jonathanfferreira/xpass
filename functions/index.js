@@ -502,8 +502,12 @@ exports.validateAccessCode = onCall({ cors: true }, async (request) => {
         throw new HttpsError('unauthenticated', 'Login necessário para validar acesso.');
     }
 
-    const { token } = request.data;
+    const { token, latitude, longitude } = request.data;
     const partnerId = request.auth.uid;
+
+    // Validação de geolocalização ativada?
+    const GEOFENCE_ENABLED = true;
+    const GEOFENCE_RADIUS_METERS = 150; // Raio de 150 metros
 
     try {
         // 1. Validar e Decodificar Token
@@ -516,17 +520,53 @@ exports.validateAccessCode = onCall({ cors: true }, async (request) => {
 
         const userData = userDoc.data();
 
-        // 3. Registrar Check-in
+        // 3. [GEOFENCING] Validar localização do scanner (parceiro)
+        if (GEOFENCE_ENABLED && latitude && longitude) {
+            const partnerDoc = await db.collection('partners').doc(partnerId).get();
+
+            if (partnerDoc.exists) {
+                const partnerData = partnerDoc.data();
+
+                if (partnerData.location && partnerData.location.latitude && partnerData.location.longitude) {
+                    const distance = calculateDistance(
+                        latitude,
+                        longitude,
+                        partnerData.location.latitude,
+                        partnerData.location.longitude
+                    );
+
+                    console.log(`📍 Geofence check: Device at ${distance.toFixed(0)}m from partner location`);
+
+                    if (distance > GEOFENCE_RADIUS_METERS) {
+                        throw new HttpsError(
+                            'failed-precondition',
+                            `Check-in deve ser feito na academia. Você está a ${distance.toFixed(0)}m do local.`
+                        );
+                    }
+                }
+            }
+        }
+
+        // 4. Registrar Check-in
         await db.collection('checkins').add({
             userId: userId,
             partnerId: partnerId,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             status: 'COMPLETED',
             amount: 25.00, // Valor fixo de repasse por enquanto
-            type: 'qr_scan'
+            type: 'qr_scan',
+            deviceLocation: (latitude && longitude) ? { latitude, longitude } : null
         });
 
-        // 4. Retornar Perfil para o Parceiro
+        // 5. Criar notificação para o aluno
+        await createNotification(
+            userId,
+            'checkin',
+            'Check-in Realizado',
+            'Seu check-in foi confirmado. Bom treino!'
+        );
+
+        // 6. Retornar Perfil para o Parceiro
         return {
             success: true,
             user: {
@@ -542,9 +582,35 @@ exports.validateAccessCode = onCall({ cors: true }, async (request) => {
         if (error.name === 'TokenExpiredError') {
             throw new HttpsError('failed-precondition', 'QRCode Expirado. Gere um novo.');
         }
+        if (error.code) {
+            throw error; // Re-throw Firebase errors (like geofence error)
+        }
         throw new HttpsError('invalid-argument', 'Código Inválido.');
     }
 });
+
+/**
+ * Calcula a distância entre duas coordenadas usando a fórmula Haversine
+ * @param {number} lat1 - Latitude do ponto 1
+ * @param {number} lon1 - Longitude do ponto 1
+ * @param {number} lat2 - Latitude do ponto 2
+ * @param {number} lon2 - Longitude do ponto 2
+ * @returns {number} Distância em metros
+ */
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Raio da Terra em metros
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distância em metros
+}
 
 // ============================================================================
 // 4. NOTIFICATIONS (PUSH)
