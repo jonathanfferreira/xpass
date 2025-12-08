@@ -16,6 +16,8 @@ secrets/
 **/serviceAccountKey.json
 **/firebase-adminsdk*.json
 **/*-credentials.json
+functions/index.js
+functions/.runtimeconfig.json
 
 # ==========================================
 # 📦 Dependencies
