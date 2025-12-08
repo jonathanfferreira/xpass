@@ -37,24 +37,24 @@ O XPASS é uma plataforma que conecta alunos a academias parceiras usando um sis
 ### 💳 Sistema de Créditos
 | Item | Status | Descrição |
 |------|--------|-----------|
-| Comprar créditos (Stripe) | 🟡 Parcial | Checkout funciona, créditos não atualizam |
-| Exibir saldo real | 🟡 Parcial | Às vezes mostra valor errado |
-| Histórico de transações | 🔴 Pendente | - |
+| Comprar créditos (Stripe) | ✅ OK | Checkout e Webhook funcionais |
+| Exibir saldo real | ✅ OK | Sincronização via Firestore forçada |
+| Histórico de transações | ✅ OK | Componente e índices criados |
 
 ### 📅 Sistema de Reservas
 | Item | Status | Descrição |
 |------|--------|-----------|
 | Listar academias | ✅ OK | Dados mock |
 | Ver detalhes do estúdio | ✅ OK | Modal funcional |
-| Reservar aula | 🟡 Parcial | Cloud Function existe, falta testar |
+| Reservar aula | ✅ OK | Cloud Function testada |
 | Ver minhas reservas | ✅ OK | Componente criado |
 | Cancelar reserva | 🔴 Pendente | - |
 
 ### 🔔 Notificações
 | Item | Status | Descrição |
 |------|--------|-----------|
-| Painel de notificações | ✅ OK | Componente criado (dados mock) |
-| Notificações reais | 🔴 Pendente | Integrar com Firestore |
+| Painel de notificações | ✅ OK | Integrado com Firestore |
+| Notificações reais | ✅ OK | Gatilhos em pagam. e reserva |
 | Push notifications | 🔴 Pendente | - |
 
 ### 👤 Perfil do Usuário
@@ -94,19 +94,18 @@ O XPASS é uma plataforma que conecta alunos a academias parceiras usando um sis
 
 ---
 
-## 🎯 SPRINT ATUAL: Corrigir Core
+## 🎯 SPRINT ATUAL: Corrigir Core (Concluído!)
 
-### Prioridade 1 (Esta Semana)
+### Feito nesta sprint:
 1. **🔥 Corrigir fluxo de créditos**
-   - [ ] Debugar webhook Stripe
-   - [ ] Verificar `syncStripePayment` function
-   - [ ] Garantir atualização em tempo real
+   - [x] Debugar webhook Stripe
+   - [x] Verificar `syncStripePayment` function
+   - [x] Garantir atualização em tempo real
    
 2. **📊 Sincronização de dados**
-   - [ ] Garantir `userData.credits` atualiza corretamente
-   - [ ] Testar `refreshUserData()`
+   - [x] Garantir `userData.credits` atualiza corretamente
+   - [x] Testar `refreshUserData()`
 
-### Prioridade 2 (Próxima Semana)
 3. **📅 Testar fluxo de reserva completo**
    - [x] Reservar uma aula via Cloud Function
    - [x] Ver na lista de reservas
@@ -118,7 +117,6 @@ O XPASS é uma plataforma que conecta alunos a academias parceiras usando um sis
    - [x] Notificação de créditos comprados
    - [x] Notificação de reserva confirmada
 
-### Prioridade 3 (Concluído)
 5. **🧪 Testes Automatizados**
    - [x] Configuração do Jest
    - [x] Testes para `bookStudio` (15 testes)
@@ -129,7 +127,11 @@ O XPASS é uma plataforma que conecta alunos a academias parceiras usando um sis
    - [x] Fórmula Haversine para cálculo de distância
    - [x] Validação de localização no check-in (150m)
    - [x] Mensagem de erro com distância
-   - [x] Notificação de check-in realizado
+
+### Próxima Sprint (Planejamento):
+1. **� Edição de Perfil**
+2. **🏆 Gamificação e Tiers**
+3. **📜 Cancelamento de Reservas**
 
 ---
 
@@ -137,20 +139,19 @@ O XPASS é uma plataforma que conecta alunos a academias parceiras usando um sis
 
 ```
 Fase 1 (Fundação):      ████████████████████ 100%
-Fase 2 (Core):          ████████░░░░░░░░░░░░  40%
+Fase 2 (Core):          ███████████████░░░░░  75%
 Fase 3 (Avançado):      ░░░░░░░░░░░░░░░░░░░░   0%
 
-Total do MVP:           ████████░░░░░░░░░░░░  45%
+Total do MVP:           ███████████░░░░░░░░░  55%
 ```
 
 ---
 
-## 🐛 Bugs Conhecidos
+## �🐛 Bugs Conhecidos
 
 | Bug | Severidade | Status |
 |-----|------------|--------|
-| Créditos não atualizam após compra | 🔴 Alta | Investigando |
-| Saldo diferente ao recarregar página | 🔴 Alta | Investigando |
+| Saldo diferente ao recarregar página | 🟢 Baixa | Corrigido com sync forçado |
 | Functions usam chaves hardcoded | 🟡 Média | Workaround aplicado |
 
 ---
@@ -178,4 +179,3 @@ Total do MVP:           ████████░░░░░░░░░░�
 | GitHub | https://github.com/jonathanfferreira/xpass |
 | Firebase Console | https://console.firebase.google.com/project/tranquil-door-479317-a2 |
 | Stripe Dashboard | https://dashboard.stripe.com/test |
-
