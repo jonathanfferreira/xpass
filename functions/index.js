@@ -11,17 +11,120 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
-// CONFIGURAÇÃO DO STRIPE - Use environment variables
-// Set with: firebase functions:secrets:set STRIPE_SECRET_KEY
-// Or for development: firebase functions:config:set stripe.secret_key="sk_test_..."
-const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key || "";
+// CONFIGURAÇÃO DO STRIPE
+const STRIPE_SECRET = "sk_test_51SaeXiLVT62G24LDPxpeSYNLSfMahSHl2QhLA41OzMY9yDOkkSmaUVQpIDS4s2Z30Y3NS8t8XS2gQpME4PpZClFU00pQdxOM12";
 const stripe = require('stripe')(STRIPE_SECRET);
 
-// JWT Secret - Should also be in environment
-const JWT_SECRET = process.env.JWT_SECRET || functions.config().jwt?.secret || "XPASS_DEFAULT_SECRET";
+const JWT_SECRET = "XPASS_SUPER_SECRET_KEY_2025";
 
 // ============================================================================
-// 2. BOOKING SYSTEM (AGENDAMENTO DE AULAS) 📅
+// HELPER: Criar Notificação
+// ============================================================================
+
+async function createNotification(userId, type, title, message) {
+    try {
+        await db.collection('users').doc(userId).collection('notifications').add({
+            type: type,
+            title: title,
+            message: message,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`Notification created for ${userId}: ${title}`);
+    } catch (error) {
+        console.error("Error creating notification:", error);
+    }
+}
+
+// ============================================================================
+// 2. BOOKING SYSTEM - STUDIO (SIMPLIFICADO PARA MVP)
+// ============================================================================
+
+exports.bookStudio = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Você precisa estar logado para agendar.');
+    }
+
+    const { studioId, studioName, studioImage, creditCost = 1 } = request.data;
+    const userId = request.auth.uid;
+
+    if (!studioId || !studioName) {
+        throw new HttpsError('invalid-argument', 'Dados do estúdio são obrigatórios.');
+    }
+
+    try {
+        // 1. Buscar usuário
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists) {
+            throw new HttpsError('not-found', 'Perfil de usuário não encontrado.');
+        }
+
+        const userData = userDoc.data();
+        const currentCredits = userData.credits || 0;
+
+        // 2. Verificar saldo
+        if (currentCredits < creditCost) {
+            throw new HttpsError('failed-precondition', 'Saldo insuficiente.');
+        }
+
+        // 3. Criar reserva
+        const bookingRef = await db.collection('bookings').add({
+            studioId: studioId,
+            studioName: studioName,
+            studioImage: studioImage || null,
+            userId: userId,
+            userName: userData.name || 'Aluno',
+            userEmail: userData.email || null,
+            date: new Date().toISOString().split('T')[0],
+            time: '08:00',
+            status: 'confirmed',
+            creditCost: creditCost,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 4. Debitar créditos
+        await userRef.update({
+            credits: currentCredits - creditCost
+        });
+
+        // 5. Registrar transação
+        await db.collection('transactions').add({
+            type: 'BOOKING',
+            userId: userId,
+            studioId: studioId,
+            studioName: studioName,
+            bookingId: bookingRef.id,
+            amount: -creditCost,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            status: 'COMPLETED'
+        });
+
+        // 6. Criar notificação
+        await createNotification(
+            userId,
+            'booking',
+            'Reserva Confirmada',
+            `Sua reserva em ${studioName} foi confirmada!`
+        );
+
+        console.log(`Booking created: ${bookingRef.id} for user ${userId}`);
+
+        return {
+            success: true,
+            bookingId: bookingRef.id,
+            message: 'Reserva realizada com sucesso!'
+        };
+
+    } catch (error) {
+        console.error("Error booking studio:", error);
+        throw new HttpsError('internal', error.message || 'Erro ao fazer reserva.');
+    }
+});
+
+// ============================================================================
+// 2.1 BOOKING SYSTEM (AULAS ESPECÍFICAS) 📅
 // ============================================================================
 
 exports.bookClass = onCall({ cors: true }, async (request) => {
@@ -267,6 +370,108 @@ exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
     } catch (error) {
         console.error('❌ Erro ao criar checkout:', error);
         throw new HttpsError('internal', 'Erro ao criar sessão de pagamento: ' + error.message);
+    }
+});
+
+// ============================================================================
+// 2.5 CONFIRMAR PAGAMENTO (Chamado pelo frontend após retorno do Stripe)
+// ============================================================================
+
+exports.confirmPayment = onCall({ cors: true }, async (request) => {
+    console.log("🔍 [confirmPayment] Verificando pagamento...");
+
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Usuário deve estar logado.');
+    }
+
+    const { sessionId } = request.data;
+    const userId = request.auth.uid;
+
+    if (!sessionId) {
+        throw new HttpsError('invalid-argument', 'Session ID é obrigatório.');
+    }
+
+    console.log(`👤 User: ${userId}, Session: ${sessionId}`);
+
+    try {
+        // 1. Verificar sessão no Stripe
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        console.log(`📊 Session Status: ${session.payment_status}`);
+        console.log(`📦 Session Metadata:`, session.metadata);
+
+        // 2. Verificar se já foi processado
+        const existingTx = await db.collection('transactions')
+            .where('stripeSessionId', '==', sessionId)
+            .get();
+
+        if (!existingTx.empty) {
+            console.log("⚠️ Sessão já processada.");
+            return { success: true, message: 'Pagamento já processado.', alreadyProcessed: true };
+        }
+
+        // 3. Verificar se pagamento foi bem sucedido
+        if (session.payment_status !== 'paid') {
+            console.log("⏳ Pagamento ainda não confirmado.");
+            return { success: false, message: 'Pagamento ainda não confirmado.' };
+        }
+
+        // 4. Verificar se o userId confere
+        if (session.metadata.firebaseUID !== userId) {
+            console.error("❌ User ID não confere!");
+            throw new HttpsError('permission-denied', 'Usuário não autorizado.');
+        }
+
+        // 5. Calcular créditos
+        const creditsToAdd = parseInt(session.metadata.credits, 10) || 0;
+
+        if (creditsToAdd <= 0) {
+            throw new HttpsError('invalid-argument', 'Quantidade de créditos inválida.');
+        }
+
+        // 6. Atualizar créditos do usuário
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+
+        const currentCredits = userDoc.exists ? (userDoc.data().credits || 0) : 0;
+        const newBalance = currentCredits + creditsToAdd;
+
+        await userRef.set({
+            credits: newBalance
+        }, { merge: true });
+
+        // 7. Criar registro de transação
+        await db.collection('transactions').add({
+            type: 'CREDIT_PURCHASE',
+            userId: userId,
+            amount: creditsToAdd,
+            cost: session.amount_total / 100,
+            stripeSessionId: sessionId,
+            stripePaymentIntent: session.payment_intent,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            status: 'COMPLETED'
+        });
+
+        // 8. Criar notificação
+        await createNotification(
+            userId,
+            'credits',
+            'Créditos Adicionados',
+            `Você recebeu ${creditsToAdd} créditos na sua carteira!`
+        );
+
+        console.log(`SUCCESS: Added ${creditsToAdd} credits to ${userId}. New Balance: ${newBalance}`);
+
+        return {
+            success: true,
+            creditsAdded: creditsToAdd,
+            newBalance: newBalance,
+            message: `${creditsToAdd} créditos adicionados com sucesso!`
+        };
+
+    } catch (error) {
+        console.error("❌ Erro ao confirmar pagamento:", error);
+        throw new HttpsError('internal', 'Erro ao confirmar pagamento: ' + error.message);
     }
 });
 

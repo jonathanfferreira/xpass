@@ -52,6 +52,14 @@ service cloud.firestore {
       // allow delete: if isOwner(userId); 
     }
 
+    // User's notifications subcollection
+    match /users/{userId}/notifications/{notificationId} {
+      allow read: if isOwner(userId);
+      allow update: if isOwner(userId); // Can mark as read
+      allow delete: if isOwner(userId);
+      // Create is done by Cloud Functions only
+    }
+
     match /customers/{userId} {
        allow read, write: if isOwner(userId); // Stripe Extension integration
     }
