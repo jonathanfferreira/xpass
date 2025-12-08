@@ -108,19 +108,22 @@ O XPASS é uma plataforma que conecta alunos a academias parceiras usando um sis
 
 ### Prioridade 2 (Próxima Semana)
 3. **📅 Testar fluxo de reserva completo**
-   - [ ] Reservar uma aula
-   - [ ] Ver na lista de reservas
-   - [ ] Verificar desconto de créditos
+   - [x] Reservar uma aula via Cloud Function
+   - [x] Ver na lista de reservas
+   - [x] Verificar desconto de créditos
 
 4. **🔔 Notificações reais**
-   - [ ] Criar coleção `notifications` no Firestore
-   - [ ] Conectar painel com dados reais
+   - [x] Criar coleção `notifications` no Firestore
+   - [x] Conectar painel com dados reais
+   - [x] Notificação de créditos comprados
+   - [x] Notificação de reserva confirmada
 
-### Prioridade 3 (Futuro Próximo)
-5. **👤 Completar perfil**
-   - [ ] Edição de nome/foto
-   - [ ] Aba de amigos
-   - [ ] Achievements básicos
+### Prioridade 3 (Concluído)
+5. **🧪 Testes Automatizados**
+   - [x] Configuração do Jest
+   - [x] Testes para `bookStudio` (15 testes)
+   - [x] Testes para `confirmPayment` (18 testes)
+   - [ ] Testes de integração (futuro)
 
 ---
 
