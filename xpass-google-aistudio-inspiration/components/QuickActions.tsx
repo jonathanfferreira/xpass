@@ -8,6 +8,14 @@ const actions = [
   { icon: Ticket, label: 'Pass' },
 ];
 
+/**
+ * A grid of quick action buttons.
+ *
+ * Provides easy access to common actions like Check-in, Map, AI Coach, and Pass.
+ *
+ * @component
+ * @returns {JSX.Element} The rendered QuickActions component.
+ */
 const QuickActions: React.FC = () => {
   return (
     <div className="grid grid-cols-4 gap-3 w-full">

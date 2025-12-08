@@ -7,6 +7,18 @@ interface BottomNavProps {
   onTabChange: (tab: Tab) => void;
 }
 
+/**
+ * The bottom navigation bar for the mobile app layout.
+ *
+ * Renders icons and labels for different tabs (Home, Search, My Plan, Credits, Shop).
+ * Handles active state styling and tab switching.
+ *
+ * @component
+ * @param {BottomNavProps} props - The component props.
+ * @param {Tab} props.currentTab - The currently selected tab ID.
+ * @param {Function} props.onTabChange - Callback function when a tab is selected.
+ * @returns {JSX.Element} The rendered BottomNav component.
+ */
 const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange }) => {
   const navItems: { id: Tab; icon: React.ElementType; label: string }[] = [
     { id: 'home', icon: Home, label: 'Home' },

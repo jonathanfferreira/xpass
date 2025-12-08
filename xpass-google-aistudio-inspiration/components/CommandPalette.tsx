@@ -8,6 +8,20 @@ interface CommandPaletteProps {
   onLogout: () => void;
 }
 
+/**
+ * A modal command palette for quick navigation and actions.
+ *
+ * Allows users to search for commands and execute them using the keyboard or mouse.
+ * Supports navigation to different views (Overview, Financial, Support) and logging out.
+ *
+ * @component
+ * @param {CommandPaletteProps} props - The component props.
+ * @param {boolean} props.isOpen - Whether the command palette is visible.
+ * @param {Function} props.onClose - Callback function to close the palette.
+ * @param {Function} props.onNavigate - Callback function to handle navigation (receives view ID).
+ * @param {Function} props.onLogout - Callback function to handle user logout.
+ * @returns {JSX.Element|null} The rendered component or null if not open.
+ */
 const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavigate, onLogout }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);

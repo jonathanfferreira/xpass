@@ -13,11 +13,29 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
+/**
+ * The initialized Firebase application instance.
+ * @type {import('firebase/app').FirebaseApp}
+ */
 const app = initializeApp(firebaseConfig);
 
 // Export services
+/**
+ * Firebase Authentication service instance.
+ * @type {import('firebase/auth').Auth}
+ */
 export const auth = getAuth(app);
+
+/**
+ * Firestore Database service instance.
+ * @type {import('firebase/firestore').Firestore}
+ */
 export const db = getFirestore(app);
+
+/**
+ * Firebase Cloud Functions service instance.
+ * @type {import('firebase/functions').Functions}
+ */
 export const functions = getFunctions(app);
 
 export default app;

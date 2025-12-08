@@ -1,5 +1,9 @@
 # XPASS Data Connect Schema
 
+"""
+Represents a user in the XPASS ecosystem.
+Can be a student, partner, or admin.
+"""
 type User @table(key: ["id"]) {
   id: String! @col(name: "uid")
   name: String!
@@ -12,6 +16,9 @@ type User @table(key: ["id"]) {
   stripeCustomerId: String
 }
 
+"""
+Represents a partner (gym, studio, etc.) offering classes.
+"""
 type Partner @table {
   id: UUID! @default(expr: "uuidV4()")
   name: String!
@@ -26,6 +33,9 @@ type Partner @table {
   checkins: Int @default(value: 0)
 }
 
+"""
+Represents a scheduled class provided by a partner.
+"""
 type Class @table {
   id: UUID! @default(expr: "uuidV4()")
   partner: Partner!
@@ -37,6 +47,9 @@ type Class @table {
   offPeakPrice: Int
 }
 
+"""
+Represents a booking made by a user for a specific class.
+"""
 type Booking @table {
   id: UUID! @default(expr: "uuidV4()")
   user: User!
@@ -46,6 +59,9 @@ type Booking @table {
   createdAt: Timestamp! @default(expr: "request.time")
 }
 
+"""
+Represents a user's subscription plan.
+"""
 type UserSubscription @table {
   id: UUID! @default(expr: "uuidV4()")
   user: User!
@@ -60,6 +76,9 @@ type UserSubscription @table {
   rolloverCap: Int @default(value: 0)
 }
 
+"""
+Represents a financial or credit transaction (purchase, usage, refund).
+"""
 type Transaction @table {
   id: UUID! @default(expr: "uuidV4()")
   user: User!
@@ -75,6 +94,9 @@ type Transaction @table {
   timestamp: Timestamp! @default(expr: "request.time")
 }
 
+"""
+Represents a check-in event at a partner location.
+"""
 type Checkin @table {
   id: UUID! @default(expr: "uuidV4()")
   partner: Partner!

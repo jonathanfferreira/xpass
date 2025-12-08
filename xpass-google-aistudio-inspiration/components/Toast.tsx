@@ -15,6 +15,17 @@ interface ToastContainerProps {
   removeToast: (id: string) => void;
 }
 
+/**
+ * A container for displaying toast notifications.
+ *
+ * Renders a list of ToastItem components positioned at the top-right of the screen.
+ *
+ * @component
+ * @param {ToastContainerProps} props - The component props.
+ * @param {ToastMessage[]} props.toasts - Array of toast messages to display.
+ * @param {Function} props.removeToast - Callback function to remove a toast by ID.
+ * @returns {JSX.Element} The rendered ToastContainer.
+ */
 const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) => {
   return (
     <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
@@ -25,6 +36,17 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) 
   );
 };
 
+/**
+ * An individual toast notification item.
+ *
+ * Displays the toast content and auto-dismisses after a timeout.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {ToastMessage} props.toast - The toast message data.
+ * @param {Function} props.onRemove - Callback function to remove the toast.
+ * @returns {JSX.Element} The rendered ToastItem.
+ */
 const ToastItem: React.FC<{ toast: ToastMessage; onRemove: () => void }> = ({ toast, onRemove }) => {
   useEffect(() => {
     const timer = setTimeout(() => {

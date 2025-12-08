@@ -1,3 +1,6 @@
+"""
+Creates a new user record.
+"""
 mutation CreateUser($id: String!, $name: String!, $email: String!) @auth(level: PUBLIC) {
   user_insert(data: {
     id: $id,
@@ -8,6 +11,9 @@ mutation CreateUser($id: String!, $name: String!, $email: String!) @auth(level: 
   })
 }
 
+"""
+Creates a new booking for a user.
+"""
 mutation CreateBooking($userId: String!, $classId: UUID!, $cost: Int!) @auth(level: USER) {
   booking_insert(data: {
     user: { id: $userId },

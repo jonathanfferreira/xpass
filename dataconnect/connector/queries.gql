@@ -1,3 +1,6 @@
+"""
+Lists all available partners.
+"""
 query ListPartners @auth(level: PUBLIC) {
   partners {
     id
@@ -11,6 +14,9 @@ query ListPartners @auth(level: PUBLIC) {
   }
 }
 
+"""
+Retrieves a user's profile by ID.
+"""
 query GetUserProfile($id: String!) @auth(level: USER) {
   user(id: $id) {
     id
@@ -20,6 +26,9 @@ query GetUserProfile($id: String!) @auth(level: USER) {
   }
 }
 
+"""
+Lists all bookings for a specific user, ordered by creation date.
+"""
 query ListUserBookings($id: String!) @auth(level: USER) {
   bookings(where: {user: {id: {eq: $id}}}, orderBy: [{createdAt: DESC}]) {
     id
@@ -38,6 +47,9 @@ query ListUserBookings($id: String!) @auth(level: USER) {
   }
 }
 
+"""
+Lists classes for a specific partner, ordered by start time.
+"""
 query ListClassesByPartner($partnerId: UUID!) @auth(level: PUBLIC) {
   classes(where: {partner: {id: {eq: $partnerId}}}, orderBy: [{startTime: ASC}]) {
     id
@@ -50,6 +62,9 @@ query ListClassesByPartner($partnerId: UUID!) @auth(level: PUBLIC) {
   }
 }
 
+"""
+Retrieves details of a specific partner by ID.
+"""
 query GetPartnerById($id: UUID!) @auth(level: PUBLIC) {
   partner(id: $id) {
     id

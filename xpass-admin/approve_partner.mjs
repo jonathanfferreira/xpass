@@ -14,6 +14,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+/**
+ * Approves a specific partner (Alceu) by email.
+ *
+ * Searches for a partner with email "alceu@xpacecompany.com", updates their status to 'ACTIVE',
+ * and logs the approval.
+ *
+ * @returns {Promise<void>} Resolves when the approval is complete.
+ */
 async function approvePartner() {
     console.log("Searching for 'Alceu'...");
     try {

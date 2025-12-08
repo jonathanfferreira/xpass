@@ -64,6 +64,15 @@ const MOCK_PARTNERS = [
     }
 ];
 
+/**
+ * Seeds the Firestore 'partners' collection with mock data.
+ *
+ * Iterates through a predefined list of mock partners and adds them to Firestore.
+ * Useful for initializing the database with test data for development.
+ *
+ * @returns {Promise<Object>} Returns an object indicating success status and the count of partners created.
+ *                            If failed, returns success: false and the error.
+ */
 export const seedPartners = async () => {
     try {
         const partnersRef = collection(db, "partners");

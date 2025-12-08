@@ -4,6 +4,14 @@ import { collection, query, orderBy, limit, getDocs, where } from 'firebase/fire
 import { httpsCallable } from 'firebase/functions';
 import { Search, RotateCcw, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 
+/**
+ * A support dashboard component for managing financial transactions.
+ *
+ * Lists recent transactions and allows administrators to process refunds.
+ *
+ * @component
+ * @returns {JSX.Element} The rendered SupportView component.
+ */
 export default function SupportView() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
