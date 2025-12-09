@@ -348,24 +348,42 @@ exports.generateAccessCode = onCall({ cors: true }, async (request) => {
 });
 
 /**
- * Validates a JWT access token for QR code access.
+ * Helper function to calculate distance between two coordinates in meters.
+ */
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Radius of the earth in meters
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in meters
+    return d;
+}
+
+/**
+ * Validates a JWT access token for QR code access with Geofencing and Gamification.
  *
- * Verifies the token, retrieves user data, records a check-in, and returns user profile info.
- * Designed to be called by a partner app to validate a user's entry.
+ * Verifies the token, checks if the partner is within allowed range (Geofencing),
+ * records a check-in, and updates user gamification stats (XP, Tier).
  *
  * @param {Object} request - The request object.
  * @param {Object} request.auth - Authentication data.
  * @param {Object} request.data - The data passed to the function.
  * @param {string} request.data.token - The JWT token to validate.
- * @returns {Promise<Object>} Returns success status and user profile data.
- * @throws {HttpsError} Throws an error if unauthenticated, token is invalid/expired, or user not found.
+ * @param {number} [request.data.partnerLat] - The latitude of the partner device.
+ * @param {number} [request.data.partnerLng] - The longitude of the partner device.
+ * @returns {Promise<Object>} Returns success status and user profile data with new XP.
+ * @throws {HttpsError} Throws an error if unauthenticated, token is invalid, or location is mismatch.
  */
 exports.validateAccessCode = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login necessário para validar acesso.');
     }
 
-    const { token } = request.data;
+    const { token, partnerLat, partnerLng } = request.data;
     const partnerId = request.auth.uid;
 
     try {
@@ -373,39 +391,88 @@ exports.validateAccessCode = onCall({ cors: true }, async (request) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const userId = decoded.uid;
 
-        // 2. Buscar Dados do Usuário
-        const userDoc = await db.collection('users').doc(userId).get();
-        if (!userDoc.exists) throw new HttpsError('not-found', 'Usuário não encontrado.');
+        // 2. Transação para Consistência (Dados do Usuário e Parceiro)
+        return await db.runTransaction(async (transaction) => {
+            const userRef = db.collection('users').doc(userId);
+            const partnerRef = db.collection('partners').doc(partnerId);
 
-        const userData = userDoc.data();
+            const userDoc = await transaction.get(userRef);
+            const partnerDoc = await transaction.get(partnerRef);
 
-        // 3. Registrar Check-in
-        await db.collection('checkins').add({
-            userId: userId,
-            partnerId: partnerId,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            status: 'COMPLETED',
-            amount: 25.00, // Valor fixo de repasse por enquanto
-            type: 'qr_scan'
-        });
+            if (!userDoc.exists) throw new HttpsError('not-found', 'Usuário não encontrado.');
+            if (!partnerDoc.exists) throw new HttpsError('not-found', 'Parceiro não encontrado.');
 
-        // 4. Retornar Perfil para o Parceiro
-        return {
-            success: true,
-            user: {
-                name: userData.name || 'Aluno',
-                photo: userData.photoURL || null,
-                credits: userData.credits || 0,
-                plan: 'XPASS PRO' // Simulação
+            const userData = userDoc.data();
+            const partnerData = partnerDoc.data();
+
+            // === GEOFENCING SECURITY CHECK ===
+            // Se o parceiro enviou coordenadas e tem coordenadas cadastradas
+            if (partnerLat && partnerLng && partnerData.latitude && partnerData.longitude) {
+                const distance = getDistanceFromLatLonInMeters(
+                    partnerLat, partnerLng,
+                    partnerData.latitude, partnerData.longitude
+                );
+
+                console.log(`📍 Geofence Check: Distância ${distance.toFixed(2)}m (Limite: 200m)`);
+
+                if (distance > 200) { // Margem de erro de 200 metros
+                    throw new HttpsError('permission-denied', `Localização inválida. Você está a ${Math.round(distance)}m do local cadastrado.`);
+                }
+            } else {
+                console.warn("⚠️ Geofencing ignorado: Coordenadas ausentes.");
             }
-        };
+
+            // === GAMIFICATION LOGIC ===
+            const currentCheckins = (userData.totalCheckins || 0) + 1;
+            const currentXP = (userData.xp || 0) + 100; // 100 XP por treino
+
+            let newTier = userData.tier || 'BRONZE';
+            if (currentXP > 1000) newTier = 'SILVER';
+            if (currentXP > 5000) newTier = 'GOLD';
+            if (currentXP > 10000) newTier = 'DIAMOND';
+
+            // 3. Registrar Check-in
+            const checkinRef = db.collection('checkins').doc();
+            transaction.set(checkinRef, {
+                userId: userId,
+                partnerId: partnerId,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'COMPLETED',
+                amount: 25.00, // Valor fixo de repasse por enquanto
+                type: 'qr_scan',
+                xpEarned: 100
+            });
+
+            // 4. Atualizar Usuário
+            transaction.update(userRef, {
+                totalCheckins: currentCheckins,
+                xp: currentXP,
+                tier: newTier,
+                lastCheckin: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 5. Retornar Perfil Atualizado para o Parceiro
+            return {
+                success: true,
+                user: {
+                    name: userData.name || 'Aluno',
+                    photo: userData.photoURL || null,
+                    credits: userData.credits || 0,
+                    plan: 'XPASS PRO',
+                    tier: newTier,
+                    checkins: currentCheckins
+                },
+                message: "Acesso Liberado! +100 XP 🚀"
+            };
+        });
 
     } catch (error) {
         console.error("Erro na validação:", error);
+        if (error.code === 'permission-denied') throw error; // Re-throw geofence error
         if (error.name === 'TokenExpiredError') {
             throw new HttpsError('failed-precondition', 'QRCode Expirado. Gere um novo.');
         }
-        throw new HttpsError('invalid-argument', 'Código Inválido.');
+        throw new HttpsError('invalid-argument', 'Código Inválido ou Erro Interno.');
     }
 });
 
