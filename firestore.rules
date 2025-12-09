@@ -40,7 +40,9 @@ service cloud.firestore {
     // ========================================================================
 
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      // Allow read for any authenticated user (so they can see friends' names/photos)
+      // In production, use a separate 'public_profiles' collection or field-level security
+      allow read: if isSignedIn();
       
       // CREATE: User can create their profile on signup
       allow create: if isOwner(userId);
@@ -50,6 +52,17 @@ service cloud.firestore {
 
       // DELETE: User typically doesn't delete, but let's allow for GDPR compliance
       // allow delete: if isOwner(userId); 
+
+      // --- SOCIAL (FOLLOWING SYSTEM) ---
+      match /following/{targetId} {
+          allow read: if isSignedIn();
+          allow write: if isOwner(userId);
+      }
+      
+      match /followers/{followerId} {
+          allow read: if isSignedIn();
+          allow create, delete: if request.auth.uid == followerId;
+      } 
     }
 
     // User's notifications subcollection
@@ -106,7 +119,24 @@ service cloud.firestore {
     }
 
     // ========================================================================
-    // 4. DEFAULT BLOCK
+    // 4. SOCIAL & COMMUNITY (Gymrats) 👯‍♂️
+    // ========================================================================
+    
+    // Feed Events (Posts, Check-ins, Achievements): Public access for authenticated users
+    match /feed_events/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn(); // Users can post manually (status updates)
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+    
+    // Reviews: Public
+    match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+    }
+
+    // ========================================================================
+    // 5. DEFAULT BLOCK
     // ========================================================================
     match /{document=**} {
       allow read, write: if false;

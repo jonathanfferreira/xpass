@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Wallet, LifeBuoy, LogOut, ArrowUpRight, ArrowDownRight, Search, ChevronRight, TrendingUp, Filter, Sparkles, Bot, Users, Activity, CreditCard, Globe, Calendar, Command } from 'lucide-react';
+import { LayoutGrid, Wallet, LifeBuoy, LogOut, ArrowUpRight, ArrowDownRight, Search, ChevronRight, TrendingUp, Filter, Sparkles, Bot, Users, Activity, CreditCard, Globe, Calendar, Command, Building, CheckCircle, XCircle } from 'lucide-react';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import CommandPalette from '../components/CommandPalette';
 import ToastContainer from '../components/Toast';
 
@@ -68,6 +70,39 @@ const AdminApp = ({ onReturnToPortal }) => {
     const [isCmdOpen, setIsCmdOpen] = useState(false);
     const [toasts, setToasts] = useState([]);
 
+    // Partners Logic
+    const [partners, setPartners] = useState([]);
+
+    useEffect(() => {
+        if (currentTab === 'partners') {
+            fetchPartners();
+        }
+    }, [currentTab]);
+
+    const fetchPartners = async () => {
+        try {
+            const q = query(collection(db, "users"), where("role", "==", "partner"));
+            const snapshot = await getDocs(q);
+            const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            setPartners(list);
+        } catch (error) {
+            console.error("Error fetching partners:", error);
+            addToast('error', 'Erro', 'Falha ao buscar parceiros');
+        }
+    };
+
+    const handleApprove = async (partnerId) => {
+        if (!window.confirm("Aprovar este parceiro?")) return;
+        try {
+            await updateDoc(doc(db, "users", partnerId), { status: 'APPROVED' });
+            addToast('success', 'Sucesso', 'Parceiro aprovado!');
+            fetchPartners();
+        } catch (error) {
+            console.error("Error approving:", error);
+            addToast('error', 'Erro', 'Falha ao aprovar');
+        }
+    };
+
     // Toast Helper
     const addToast = (type, title, message) => {
         const id = Date.now().toString();
@@ -109,6 +144,7 @@ const AdminApp = ({ onReturnToPortal }) => {
             <nav className="flex-1 px-4 space-y-2">
                 {[
                     { id: 'overview', icon: LayoutGrid, label: 'Visão Geral' },
+                    { id: 'partners', icon: Building, label: 'Academias' },
                     { id: 'financial', icon: Wallet, label: 'Financeiro' },
                     { id: 'support', icon: LifeBuoy, label: 'Suporte' }
                 ].map((item) => (
@@ -400,9 +436,9 @@ const AdminApp = ({ onReturnToPortal }) => {
                             <div className="text-white">{trx.value}</div>
                             <div>
                                 <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider border ${trx.status === 'Completed' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
-                                        trx.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                                            trx.status === 'Dispute' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                                'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                    trx.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                                        trx.status === 'Dispute' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                            'bg-blue-500/10 text-blue-500 border-blue-500/20'
                                     }`}>
                                     {trx.status}
                                 </span>
@@ -414,11 +450,64 @@ const AdminApp = ({ onReturnToPortal }) => {
         </div>
     );
 
+    const renderPartners = () => (
+        <div className="animate-in fade-in duration-500 space-y-6">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-3xl font-heading font-medium text-white uppercase tracking-wide mb-1">Academias</h1>
+                    <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Gestão de Parceiros ({partners.length})</p>
+                </div>
+                <button onClick={fetchPartners} className="text-xs font-mono text-brand-500 hover:text-white uppercase transition-colors">Atualizar Lista</button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+                {partners.length === 0 ? (
+                    <div className="p-8 text-center text-zinc-500 font-mono text-xs uppercase">Nenhum parceiro encontrado.</div>
+                ) : (
+                    partners.map(p => (
+                        <div key={p.id} className="bg-onyx-900 border border-white/5 p-6 rounded-2xl flex items-center justify-between group hover:border-brand-500/20 transition-all">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${p.status === 'APPROVED' ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500'}`}>
+                                    <Building size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-heading text-lg uppercase">{p.gymName || 'Sem Nome'}</h3>
+                                    <p className="text-zinc-500 text-xs font-mono">{p.email}</p>
+                                    <div className="flex gap-2 mt-1">
+                                        <span className="text-[10px] bg-white/5 text-zinc-400 px-2 py-0.5 rounded uppercase">{p.cnpj || 'CPF/CNPJ N/A'}</span>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${p.status === 'APPROVED' ? 'text-green-500 bg-green-500/10' : 'text-yellow-500 bg-yellow-500/10 animate-pulse'}`}>
+                                            {p.status || 'PENDING'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {p.status !== 'APPROVED' && (
+                                <button
+                                    onClick={() => handleApprove(p.id)}
+                                    className="px-6 py-2 bg-brand-500 hover:bg-brand-400 text-black font-bold font-heading uppercase text-xs rounded-lg shadow-[0_0_15px_rgba(255,82,0,0.3)] hover:scale-105 transition-all flex items-center gap-2"
+                                >
+                                    <CheckCircle size={16} /> Aprovar Cadastro
+                                </button>
+                            )}
+                            {p.status === 'APPROVED' && (
+                                <div className="text-zinc-600 flex items-center gap-1 text-xs font-mono uppercase">
+                                    <CheckCircle size={14} /> Ativo
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-black text-white font-sans flex selection:bg-brand-500 selection:text-white relative">
             <Sidebar />
             <main className="flex-1 ml-64 p-10 bg-black min-h-screen overflow-y-auto">
                 {currentTab === 'overview' && renderOverview()}
+                {currentTab === 'partners' && renderPartners()}
                 {currentTab === 'financial' && renderFinancial()}
                 {currentTab === 'support' && renderSupport()}
             </main>

@@ -123,6 +123,87 @@ exports.bookStudio = onCall({ cors: true }, async (request) => {
     }
 });
 
+exports.cancelBooking = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Login required.');
+    }
+
+    const { bookingId } = request.data;
+    const userId = request.auth.uid;
+
+    if (!bookingId) {
+        throw new HttpsError('invalid-argument', 'Booking ID required.');
+    }
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const bookingRef = db.collection('bookings').doc(bookingId);
+            const userRef = db.collection('users').doc(userId);
+
+            const bookingDoc = await transaction.get(bookingRef);
+            const userDoc = await transaction.get(userRef);
+
+            if (!bookingDoc.exists) {
+                throw new HttpsError('not-found', 'Booking not found.');
+            }
+
+            const booking = bookingDoc.data();
+
+            if (booking.userId !== userId) {
+                throw new HttpsError('permission-denied', 'You can only cancel your own bookings.');
+            }
+
+            if (booking.status === 'cancelled') {
+                throw new HttpsError('failed-precondition', 'Booking already cancelled.');
+            }
+
+            if (!userDoc.exists) {
+                throw new HttpsError('not-found', 'User profile not found.');
+            }
+
+            const userData = userDoc.data();
+            const currentCredits = userData.credits || 0;
+            const refundAmount = booking.creditCost || 0;
+
+            // Update Booking Status
+            transaction.update(bookingRef, {
+                status: 'cancelled',
+                cancelledAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Refund Credits
+            transaction.update(userRef, {
+                credits: currentCredits + refundAmount
+            });
+
+            // Create Transaction Record
+            const txRef = db.collection('transactions').doc();
+            transaction.set(txRef, {
+                type: 'REFUND',
+                userId: userId,
+                bookingId: bookingId,
+                amount: refundAmount,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'COMPLETED'
+            });
+        });
+
+        // Send Notification (non-blocking)
+        await createNotification(
+            userId,
+            'cancellation',
+            'Reserva Cancelada',
+            'Sua reserva foi cancelada e os créditos foram estornados.'
+        );
+
+        return { success: true, message: 'Reserva cancelada com sucesso.' };
+    } catch (error) {
+        console.error("Error cancelling booking:", error);
+        if (error.code) throw error;
+        throw new HttpsError('internal', 'Erro ao cancelar reserva.');
+    }
+});
+
 // ============================================================================
 // 2.1 BOOKING SYSTEM (AULAS ESPECÍFICAS) 📅
 // ============================================================================
@@ -840,3 +921,211 @@ exports.askAICoach = onCall({ cors: true }, async (request) => {
         throw new HttpsError('internal', 'Falha ao conectar com o cérebro digital.');
     }
 });
+
+exports.analyzeFood = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Login necessário.');
+    }
+
+    const { imageBase64 } = request.data;
+    if (!imageBase64) {
+        throw new HttpsError('invalid-argument', 'Imagem não fornecida.');
+    }
+
+    try {
+        if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_API_KEY_HERE") {
+            // Mock fallback if no key
+            console.warn("⚠️ GEMINI_API_KEY missing. Using mock vision.");
+            return {
+                name: 'Mock Salmon Bowl',
+                calories: 450,
+                macros: { p: 30, c: 50, f: 15 },
+                isMock: true
+            };
+        }
+
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        // Use flash for speed/vision
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+            Analyze this food image. Identify the main dish.
+            Estimate the calories and macros (Protein, Carbs, Fats) for the visible portion.
+            Return STRICT JSON format ONLY, no markdown, no code blocks.
+            Format:
+            {
+                "name": "Short Dish Name",
+                "calories": 123,
+                "macros": { "p": 10, "c": 20, "f": 5 }
+            }
+        `;
+
+        // Clean base64 header if present (data:image/jpeg;base64,)
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+
+        const imagePart = {
+            inlineData: {
+                data: base64Data,
+                mimeType: "image/jpeg",
+            },
+        };
+
+        const result = await model.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        const text = response.text();
+
+        // Clean markdown code blocks if AI adds them
+        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const data = JSON.parse(jsonStr);
+
+        return {
+            ...data,
+            isMock: false
+        };
+
+    } catch (error) {
+        console.error("Error in analyzeFood:", error);
+        throw new HttpsError('internal', 'Falha na análise visual.');
+    }
+});
+
+// ============================================================================
+// 7. SOCIAL FEED TRIGGER (Gymrats) 👯‍♂️
+// ============================================================================
+
+exports.onBookingCreated = onDocumentCreated("bookings/{bookingId}", async (event) => {
+    const booking = event.data.data();
+    if (!booking) return;
+
+    try {
+        const feedRef = db.collection('feed_events').doc();
+        await feedRef.set({
+            type: 'booking_confirmed',
+            userId: booking.userId,
+            userName: booking.userName,
+            userPhoto: booking.userPhoto || null,
+            studioName: booking.studioName || 'um estúdio',
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            likes: 0,
+            comments: 0
+        });
+        console.log(`Feed event created for booking ${event.params.bookingId}`);
+    } catch (err) {
+        console.error("Error creating feed event:", err);
+    }
+});
+
+// ============================================================================
+// 8. PARTNER AI ASSISTANT (Magic Fill) 🪄
+// ============================================================================
+
+exports.generateClassContent = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Login necessário.');
+    }
+
+    const { keywords } = request.data;
+    if (!keywords) throw new HttpsError('invalid-argument', 'Palavras-chave necessárias.');
+
+    try {
+        if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_API_KEY_HERE") {
+            return {
+                title: `Aula de ${keywords} (Mock)`,
+                description: "Descrição gerada automaticamente (zueira, falta a API Key).",
+                isMock: true
+            };
+        }
+
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+            Act as a fitness marketing expert. Create a catchy Title and a short, engaging Description for a gym class based on these keywords: "${keywords}".
+            Target audience: motivated gym-goers.
+            Language: Portuguese (Brazil).
+            Return STRICT JSON format:
+            {
+                "title": "Exciting Title",
+                "description": "2-3 sentences description."
+            }
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const data = JSON.parse(jsonStr);
+
+        return { ...data, isMock: false };
+
+    } catch (error) {
+        console.error("Error generating class content:", error);
+        throw new HttpsError('internal', 'Falha na geração de conteúdo.');
+    }
+});
+
+// ============================================================================
+// AI COACH (GEMINI INTEGRATION) 🧠
+// ============================================================================
+
+exports.askAICoach = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Você precisa estar logado para usar o AI Coach.');
+    }
+
+    const { message, context } = request.data;
+    const userId = request.auth.uid;
+
+    if (!message || message.trim().length === 0) {
+        throw new HttpsError('invalid-argument', 'Message cannot be empty.');
+    }
+
+    console.log(`🤖 AI Coach Request from ${userId}: "${message}"`);
+
+    // Import Gemini AI
+    const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+    // Access your API key as an environment variable
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+    try {
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // Build contextual prompt
+        const systemPrompt = `You are XPASS Coach, a fitness AI assistant specialized in helping users find gyms, create workout plans, and give health advice.
+        
+User Context:
+- Name: ${context.userName || 'User'}
+- Credits: ${context.userCredits || 0}
+- Last Workout: ${context.lastWorkout || 'Not recorded'}
+
+Keep responses SHORT (max 100 words), motivational, and actionable. Use emojis.`;
+
+        const fullPrompt = `${systemPrompt}\n\nUser Question: ${message}`;
+
+        const result = await model.generateContent(fullPrompt);
+        const response = result.response;
+        const text = response.text();
+
+        console.log(`✅ Gemini Response: ${text.substring(0, 100)}...`);
+
+        return {
+            response: text
+        };
+
+    } catch (error) {
+        console.error('❌ Gemini API Error:', error);
+        throw new HttpsError('internal', 'Erro ao processar mensagem com IA: ' + error.message);
+    }
+});
+
+// ============================================================================
+// 🔥 SUBSCRIPTION FUNCTIONS (Imported from subscriptions.js)
+// ============================================================================
+
+const subscriptions = require('./subscriptions');
+
+exports.createSubscriptionCheckout = subscriptions.createSubscriptionCheckout;
+exports.syncSubscription = subscriptions.syncSubscription;
+exports.createCustomerPortalSession = subscriptions.createCustomerPortalSession;
+exports.checkProStatus = subscriptions.checkProStatus;
