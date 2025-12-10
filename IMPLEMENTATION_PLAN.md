@@ -59,13 +59,13 @@ Create a "Command Center" feel.
 Incorporating insights from Gurupass/ClassPass analysis.
 
 #### [MODIFY] [Cloud Functions](file:///d:/xpass/functions/index.js)
-- **Rollover System:** [ ] Implement logic to carry over unused credits (up to 1x monthly plan) during subscription renewal.
-- **Dynamic Pricing:** [ ] Add support for `offPeakPrice` in booking calculations (Yield Management).
+- **Rollover System:** [x] Implement logic to carry over unused credits (up to 1x monthly plan) during subscription renewal. ✅ DONE
+- **Dynamic Pricing:** [x] Add support for `offPeakPrice` in booking calculations (Yield Management). ✅ DONE
 
 #### [MODIFY] [Database Schema](file:///d:/xpass/DATABASE_SCHEMA.md)
-- **Partners:** [ ] Add `offPeakPrice` (optional) to partner/class documents.
+- **Partners:** [x] Add `offPeakPrice` (optional) to partner/class documents. ✅ Already in schema.gql
 - **Partners:** [ ] Add `category` support for 'Wellness', 'Physio', 'Massage'.
-- **Subscriptions:** [ ] Add `rolloverCap` field to plan definitions.
+- **Subscriptions:** [x] Add `rolloverCap` field to plan definitions. ✅ Already in schema.gql
 
 ## Verification Plan
 ### Manual Verification

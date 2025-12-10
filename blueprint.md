@@ -35,9 +35,11 @@ O XPASS é uma plataforma de fitness multilateral que conecta alunos a estúdios
 -   Lançado **Social V2**: `GroupsView` (Squads) e aprimoramento do `ChallengesView` com prazos e participantes.
 -   Habilitado **Edição de Perfil do Parceiro**: Parceiros agora podem atualizar suas próprias informações e alternar o modo de agendamento.
 -   Polimento da **UI do App Parceiro**: Modo escuro premium, glassmorphism, branding consistente.
+-   **NOVO**: Implementado **Dynamic Pricing** (offPeakPrice) - Preços diferenciados para horários fora do pico.
+-   **NOVO**: Implementado **Rollover de Créditos** - Créditos não usados acumulam até 1x o plano mensal.
 
 ## Próximos Passos
--   **Persistência de Dados**: Verificar persistência de favoritos/edições de perfil.
+-   **Categorias Expandidas**: Wellness, Fisioterapia, Massagem.
 -   **Rankings**: Implementar lógica completa de ranking para Desafios.
 -   **Chat**: Implementar chat dentro dos Squads.
 -   **Sistema de Notificações**: Aprimorar notificações in-app.

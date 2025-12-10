@@ -305,7 +305,7 @@ exports.bookClass = onCall({ cors: true }, async (request) => {
 
         // 1. Lock and Fetch Class (Pessimistic Locking to prevent overbooking)
         const classRes = await client.query(
-            `SELECT "id", "cost", "capacity", "bookedCount", "startTime" 
+            `SELECT "id", "cost", "offPeakPrice", "capacity", "bookedCount", "startTime" 
              FROM "Class" 
              WHERE "id" = $1 
              FOR UPDATE`,
@@ -317,9 +317,23 @@ exports.bookClass = onCall({ cors: true }, async (request) => {
         }
 
         const classData = classRes.rows[0];
-        const cost = classData.cost || 1;
+        const basePrice = classData.cost || 1;
+        const offPeakPrice = classData.offPeakPrice || null;
+        const startTime = new Date(classData.startTime);
         const capacity = classData.capacity;
         const bookedCount = classData.bookedCount;
+
+        // Dynamic Pricing Logic 💰
+        // Off-peak: Before 6pm on weekdays OR all weekend
+        const dayOfWeek = startTime.getDay(); // 0 = Sunday, 6 = Saturday
+        const hour = startTime.getHours();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isOffPeakHour = hour < 18; // Before 6 PM
+        const isOffPeak = isWeekend || isOffPeakHour;
+
+        // Use offPeakPrice if available and it's off-peak time
+        const cost = (isOffPeak && offPeakPrice !== null) ? offPeakPrice : basePrice;
+        console.log(`📊 Pricing: Base=${basePrice}, OffPeak=${offPeakPrice}, Hour=${hour}, isWeekend=${isWeekend}, FinalCost=${cost}`);
 
         // 2. Fetch User (also lock)
         const userRes = await client.query(

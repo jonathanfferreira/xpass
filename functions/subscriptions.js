@@ -114,10 +114,13 @@ exports.createSubscriptionCheckout = onCall({ cors: true }, async (request) => {
  * Listens to Stripe subscription events from firestore-stripe-payments extension
  */
 exports.syncSubscription = onDocumentWritten("customers/{uid}/subscriptions/{subscriptionId}", async (event) => {
-    const snapshot = event.data?.after;
-    if (!snapshot || !snapshot.exists) return; // Document deleted
+    const beforeSnapshot = event.data?.before;
+    const afterSnapshot = event.data?.after;
 
-    const subscription = snapshot.data();
+    if (!afterSnapshot || !afterSnapshot.exists) return; // Document deleted
+
+    const subscription = afterSnapshot.data();
+    const previousSubscription = beforeSnapshot?.exists ? beforeSnapshot.data() : null;
     const userId = event.params.uid;
     const subscriptionId = event.params.subscriptionId;
 
@@ -127,8 +130,16 @@ exports.syncSubscription = onDocumentWritten("customers/{uid}/subscriptions/{sub
     const isActive = subscription?.status === 'active' || subscription?.status === 'trialing';
     const cancelled = subscription?.status === 'canceled' || subscription?.cancel_at_period_end;
 
+    // Detect if this is a RENEWAL (period changed)
+    const previousPeriodEnd = previousSubscription?.current_period_end?.seconds || 0;
+    const currentPeriodEnd = subscription?.current_period_end?.seconds || 0;
+    const isRenewal = previousSubscription && isActive && currentPeriodEnd > previousPeriodEnd;
+
     try {
         const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+
         const updateData = {
             isPro: isActive,
             subscriptionStatus: subscription?.status || 'none',
@@ -138,6 +149,57 @@ exports.syncSubscription = onDocumentWritten("customers/{uid}/subscriptions/{sub
         // Set expiration date if active
         if (isActive && subscription?.current_period_end) {
             updateData.proExpiresAt = admin.firestore.Timestamp.fromMillis(subscription.current_period_end.seconds * 1000);
+        }
+
+        // ============================================
+        // 🔄 CREDIT ROLLOVER LOGIC (On Renewal)
+        // ============================================
+        if (isRenewal) {
+            console.log(`🔄 Subscription RENEWAL detected for user ${userId}`);
+
+            // Get Plan Details (credits per month, rollover cap)
+            const priceId = subscription?.items?.[0]?.price?.id || subscription?.items?.[0]?.plan?.id;
+            const planCredits = getPlanCredits(priceId); // Helper function
+            const rolloverCap = planCredits; // Cap = 1x monthly credits (can be customized)
+
+            // Calculate unused credits to rollover
+            const currentCredits = userData.credits || 0;
+            const rolloverCredits = Math.min(currentCredits, rolloverCap);
+
+            // New balance = Rollover + New Plan Credits
+            const newBalance = rolloverCredits + planCredits;
+
+            updateData.credits = newBalance;
+            updateData.lastCreditResetAt = admin.firestore.FieldValue.serverTimestamp();
+
+            console.log(`💰 Rollover: ${currentCredits} current → ${rolloverCredits} kept (cap: ${rolloverCap}) + ${planCredits} new = ${newBalance} total`);
+
+            // Notify user about renewal
+            await createNotification(
+                userId,
+                'subscription',
+                'Assinatura Renovada! 💎',
+                `Seus créditos foram renovados: ${planCredits} novos + ${rolloverCredits} rollover = ${newBalance} total!`
+            );
+        }
+
+        // Handle FIRST activation (not renewal)
+        if (isActive && !previousSubscription?.status?.includes('active') && !isRenewal) {
+            const priceId = subscription?.items?.[0]?.price?.id || subscription?.items?.[0]?.plan?.id;
+            const planCredits = getPlanCredits(priceId);
+
+            // Add initial credits
+            const currentCredits = userData.credits || 0;
+            updateData.credits = currentCredits + planCredits;
+
+            console.log(`🆕 First activation: Adding ${planCredits} credits to user ${userId}`);
+
+            await createNotification(
+                userId,
+                'subscription',
+                'Bem-vindo ao XPASS PRO! 🚀',
+                `Sua assinatura PRO está ativa. Você recebeu ${planCredits} créditos!`
+            );
         }
 
         // Clear expiration if cancelled
@@ -156,22 +218,26 @@ exports.syncSubscription = onDocumentWritten("customers/{uid}/subscriptions/{sub
 
         await userRef.set(updateData, { merge: true });
 
-        // Notify user about subscription activation
-        if (isActive) {
-            await createNotification(
-                userId,
-                'subscription',
-                'Bem-vindo ao XPASS PRO! 🚀',
-                'Sua assinatura PRO está ativa. Aproveite todas as funcionalidades exclusivas!'
-            );
-        }
-
-        console.log(`✅ User ${userId} isPro status updated: ${isActive}`);
+        console.log(`✅ User ${userId} updated: isPro=${isActive}, credits=${updateData.credits || 'unchanged'}`);
 
     } catch (error) {
-        console.error(`❌ Error updating pro status for ${userId}:`, error);
+        console.error(`❌ Error updating subscription for ${userId}:`, error);
     }
 });
+
+// Helper: Get credits based on Stripe Price ID
+function getPlanCredits(priceId) {
+    // Map your Stripe Price IDs to credit amounts
+    const planMap = {
+        'price_basic_monthly': 50,      // Basic: 50 credits/month
+        'price_pro_monthly': 100,       // Pro: 100 credits/month
+        'price_premium_monthly': 200,   // Premium: 200 credits/month
+        // Add your actual Stripe Price IDs here
+    };
+
+    // Default to 100 credits if price not found
+    return planMap[priceId] || 100;
+}
 
 /**
  * Create Customer Portal Session
