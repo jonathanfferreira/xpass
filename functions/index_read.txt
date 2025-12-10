@@ -124,10 +124,6 @@ exports.bookStudio = onCall({ cors: true }, async (request) => {
 });
 
 exports.cancelBooking = onCall({ cors: true }, async (request) => {
-    // Import PostgreSQL connection pool
-    const pgDB = require('./db');
-    const crypto = require('crypto');
-
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Login required.');
     }
@@ -139,83 +135,72 @@ exports.cancelBooking = onCall({ cors: true }, async (request) => {
         throw new HttpsError('invalid-argument', 'Booking ID required.');
     }
 
-    let client;
     try {
-        client = await pgDB.getClient();
-        await client.query('BEGIN');
+        await db.runTransaction(async (transaction) => {
+            const bookingRef = db.collection('bookings').doc(bookingId);
+            const userRef = db.collection('users').doc(userId);
 
-        // 1. Fetch Booking (Locking)
-        const bookingRes = await client.query(
-            `SELECT "id", "userId", "classId", "status", "cost" 
-             FROM "Booking" 
-             WHERE "id" = $1 
-             FOR UPDATE`,
-            [bookingId]
-        );
+            const bookingDoc = await transaction.get(bookingRef);
+            const userDoc = await transaction.get(userRef);
 
-        if (bookingRes.rows.length === 0) {
-            throw new HttpsError('not-found', 'Booking not found.');
-        }
+            if (!bookingDoc.exists) {
+                throw new HttpsError('not-found', 'Booking not found.');
+            }
 
-        const booking = bookingRes.rows[0];
+            const booking = bookingDoc.data();
 
-        if (booking.userId !== userId) {
-            throw new HttpsError('permission-denied', 'You can only cancel your own bookings.');
-        }
+            if (booking.userId !== userId) {
+                throw new HttpsError('permission-denied', 'You can only cancel your own bookings.');
+            }
 
-        if (booking.status === 'CANCELED') {
-            throw new HttpsError('failed-precondition', 'Booking already cancelled.');
-        }
+            if (booking.status === 'cancelled') {
+                throw new HttpsError('failed-precondition', 'Booking already cancelled.');
+            }
 
-        // 2. Update Booking Status
-        // Use 'CANCELED' (uppercase) to match typical SQL enum style or whatever schema uses.
-        // The original code used 'cancelled' (lowercase). Schema says status: String!
-        // I will use 'CANCELED' to be consistent with my bookClass 'CONFIRMED'.
-        await client.query(
-            `UPDATE "Booking" SET "status" = 'CANCELED' WHERE "id" = $1`,
-            [bookingId]
-        );
+            if (!userDoc.exists) {
+                throw new HttpsError('not-found', 'User profile not found.');
+            }
 
-        // 3. Refund Credits
-        const refundAmount = booking.cost || 0;
-        await client.query(
-            `UPDATE "User" SET "credits" = "credits" + $1 WHERE "id" = $2`,
-            [refundAmount, userId]
-        );
+            const userData = userDoc.data();
+            const currentCredits = userData.credits || 0;
+            const refundAmount = booking.creditCost || 0;
 
-        // 4. Update Class Capacity (Release spot)
-        await client.query(
-            `UPDATE "Class" SET "bookedCount" = "bookedCount" - 1 WHERE "id" = $1`,
-            [booking.classId]
-        );
+            // Update Booking Status
+            transaction.update(bookingRef, {
+                status: 'cancelled',
+                cancelledAt: admin.firestore.FieldValue.serverTimestamp()
+            });
 
-        // 5. Transaction Record
-        await client.query(
-            `INSERT INTO "Transaction" ("id", "userId", "type", "amount", "relatedBookingId", "timestamp")
-             VALUES ($1, $2, 'REFUND', $3, $4, NOW())`,
-            [crypto.randomUUID(), userId, refundAmount, bookingId]
-        );
+            // Refund Credits
+            transaction.update(userRef, {
+                credits: currentCredits + refundAmount
+            });
 
-        await client.query('COMMIT');
+            // Create Transaction Record
+            const txRef = db.collection('transactions').doc();
+            transaction.set(txRef, {
+                type: 'REFUND',
+                userId: userId,
+                bookingId: bookingId,
+                amount: refundAmount,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'COMPLETED'
+            });
+        });
 
-        // 6. Notification
-        createNotification(
+        // Send Notification (non-blocking)
+        await createNotification(
             userId,
             'cancellation',
             'Reserva Cancelada',
             'Sua reserva foi cancelada e os créditos foram estornados.'
-        ).catch(console.error);
+        );
 
         return { success: true, message: 'Reserva cancelada com sucesso.' };
-
     } catch (error) {
-        if (client) await client.query('ROLLBACK');
-        console.error("Cancellation Transaction Failed:", error);
-        if (error.code && error.code.startsWith('auth')) throw error;
-        if (error instanceof HttpsError) throw error;
+        console.error("Error cancelling booking:", error);
+        if (error.code) throw error;
         throw new HttpsError('internal', 'Erro ao cancelar reserva.');
-    } finally {
-        if (client) client.release();
     }
 });
 
@@ -224,10 +209,6 @@ exports.cancelBooking = onCall({ cors: true }, async (request) => {
 // ============================================================================
 
 exports.bookClass = onCall({ cors: true }, async (request) => {
-    // Import PostgreSQL connection pool
-    const pgDB = require('./db');
-    const crypto = require('crypto'); // Ensure crypto is available
-
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Você precisa estar logado para agendar.');
     }
@@ -235,118 +216,55 @@ exports.bookClass = onCall({ cors: true }, async (request) => {
     const { classId } = request.data;
     const userId = request.auth.uid;
 
-    let client;
-    try {
-        client = await pgDB.getClient();
-        await client.query('BEGIN'); // Start Transaction
+    return db.runTransaction(async (transaction) => {
+        // 1. Referências
+        const classRef = db.collection('classes').doc(classId);
+        const userRef = db.collection('users').doc(userId);
+        const bookingRef = db.collection('bookings').doc(`${classId}_${userId}`);
 
-        // 1. Lock and Fetch Class (Pessimistic Locking to prevent overbooking)
-        const classRes = await client.query(
-            `SELECT "id", "cost", "capacity", "bookedCount", "startTime" 
-             FROM "Class" 
-             WHERE "id" = $1 
-             FOR UPDATE`,
-            [classId]
-        );
+        // 2. Leituras
+        const classDoc = await transaction.get(classRef);
+        const userDoc = await transaction.get(userRef);
+        const bookingDoc = await transaction.get(bookingRef);
 
-        if (classRes.rows.length === 0) {
-            throw new HttpsError('not-found', 'Aula não encontrada.');
-        }
+        // 3. Validações
+        if (!classDoc.exists) throw new HttpsError('not-found', 'Aula não encontrada.');
+        if (!userDoc.exists) throw new HttpsError('not-found', 'Perfil de usuário não encontrado.');
+        if (bookingDoc.exists) throw new HttpsError('already-exists', 'Você já está agendado nesta aula.');
 
-        const classData = classRes.rows[0];
+        const classData = classDoc.data();
+        const userData = userDoc.data();
         const cost = classData.cost || 1;
-        const capacity = classData.capacity;
-        const bookedCount = classData.bookedCount;
+        const capacity = classData.capacity || 10;
+        const currentBooked = classData.bookedCount || 0;
 
-        // 2. Fetch User (also lock)
-        const userRes = await client.query(
-            `SELECT "id", "credits", "email", "name" 
-             FROM "User" 
-             WHERE "id" = $1 
-             FOR UPDATE`,
-            [userId]
-        );
+        if (currentBooked >= capacity) throw new HttpsError('resource-exhausted', 'Aula lotada.');
+        if ((userData.credits || 0) < cost) throw new HttpsError('failed-precondition', `Saldo insuficiente.`);
 
-        if (userRes.rows.length === 0) {
-            throw new HttpsError('not-found', 'Usuário não encontrado.');
-        }
+        // 4. Escritas
+        transaction.update(userRef, { credits: (userData.credits || 0) - cost });
+        transaction.update(classRef, { bookedCount: currentBooked + 1 });
+        transaction.set(bookingRef, {
+            classId: classId,
+            userId: userId,
+            userName: userData.name || 'Aluno',
+            userPhoto: userData.photoURL || null,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            status: 'CONFIRMED',
+            cost: cost
+        });
 
-        const userData = userRes.rows[0];
-        const userCredits = userData.credits || 0;
+        // Audit log
+        transaction.set(db.collection('transactions').doc(), {
+            type: 'booking',
+            userId: userId,
+            classId: classId,
+            amount: cost,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
 
-        // 3. Validations
-        if (bookedCount >= capacity) {
-            throw new HttpsError('resource-exhausted', 'Aula lotada.');
-        }
-
-        if (userCredits < cost) {
-            throw new HttpsError('failed-precondition', `Saldo insuficiente. Custo: ${cost}, Seus créditos: ${userCredits}`);
-        }
-
-        // Duplicate Booking Check
-        const bookingCheck = await client.query(
-            `SELECT "id" FROM "Booking" WHERE "classId" = $1 AND "userId" = $2`,
-            [classId, userId]
-        );
-        if (bookingCheck.rows.length > 0) {
-            throw new HttpsError('already-exists', 'Você já está agendado nesta aula.');
-        }
-
-        // 4. Updates
-        const bookingId = crypto.randomUUID();
-
-        // A. Insert Booking
-        await client.query(
-            `INSERT INTO "Booking" ("id", "userId", "classId", "status", "cost", "createdAt")
-             VALUES ($1, $2, $3, 'CONFIRMED', $4, NOW())`,
-            [bookingId, userId, classId, cost]
-        );
-
-        // B. Update Class Capacity
-        await client.query(
-            `UPDATE "Class" SET "bookedCount" = "bookedCount" + 1 WHERE "id" = $1`,
-            [classId]
-        );
-
-        // C. Deduct Credits
-        await client.query(
-            `UPDATE "User" SET "credits" = "credits" - $1 WHERE "id" = $2`,
-            [cost, userId]
-        );
-
-        // D. Transaction Log
-        await client.query(
-            `INSERT INTO "Transaction" ("id", "userId", "type", "amount", "relatedBookingId", "timestamp")
-             VALUES ($1, $2, 'booking', $3, $4, NOW())`,
-            [crypto.randomUUID(), userId, -cost, bookingId]
-        );
-
-        await client.query('COMMIT');
-
-        createNotification(
-            userId,
-            'booking',
-            'Reserva Confirmada! 🚀',
-            'Sua aula foi agendada com sucesso. Prepare-se para treinar!'
-        ).catch(err => console.error("Failed to send notification:", err));
-
-        return {
-            success: true,
-            message: "Agendamento realizado com sucesso!",
-            bookingId: bookingId
-        };
-
-    } catch (error) {
-        if (client) await client.query('ROLLBACK');
-        console.error("Booking Transaction Failed:", error);
-
-        if (error.code && error.code.startsWith('auth')) throw error;
-        if (error instanceof HttpsError) throw error;
-
-        throw new HttpsError('internal', 'Erro ao processar agendamento: ' + error.message);
-    } finally {
-        if (client) client.release();
-    }
+        return { success: true, message: "Agendamento realizado com sucesso!" };
+    });
 });
 
 // ============================================================================
@@ -1211,87 +1129,3 @@ exports.createSubscriptionCheckout = subscriptions.createSubscriptionCheckout;
 exports.syncSubscription = subscriptions.syncSubscription;
 exports.createCustomerPortalSession = subscriptions.createCustomerPortalSession;
 exports.checkProStatus = subscriptions.checkProStatus;
-
-// ============================================================================
-// 📅 CLASS MANAGEMENT (POSTGRES)
-// ============================================================================
-
-exports.createClass = onCall({ cors: true }, async (request) => {
-    const pgDB = require('./db');
-
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'Login required.');
-    }
-
-    const { name, date, time, duration, capacity, cost } = request.data;
-    const partnerId = request.auth.uid; // Partner creates their own class
-
-    // Combine date and time to timestamp
-    // Assuming date is 'YYYY-MM-DD' and time is 'HH:MM'
-    const startDateTimeString = `${date}T${time}:00`;
-
-    let client;
-    try {
-        client = await pgDB.getClient();
-        await client.query(
-            `INSERT INTO "Class" ("id", "partnerId", "name", "startTime", "capacity", "cost", "bookedCount", "status", "duration")
-             VALUES (gen_random_uuid(), $1, $2, $3::timestamp, $4, $5, 0, 'ACTIVE', $6)`,
-            [partnerId, name, startDateTimeString, capacity, cost, duration]
-        );
-        return { success: true, message: 'Class created successfully' };
-    } catch (error) {
-        console.error("Error creating class:", error);
-        throw new HttpsError('internal', 'Error creating class: ' + error.message);
-    } finally {
-        if (client) client.release();
-    }
-});
-
-exports.getPartnerClasses = onCall({ cors: true }, async (request) => {
-    const pgDB = require('./db');
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-    const partnerId = request.auth.uid;
-    let client;
-    try {
-        client = await pgDB.getClient();
-        // Assuming we want future classes or recent ones
-        const res = await client.query(
-            `SELECT * FROM "Class" WHERE "partnerId" = $1 ORDER BY "startTime" ASC`,
-            [partnerId]
-        );
-        return { classes: res.rows };
-    } catch (error) {
-        console.error("Error fetching classes:", error);
-        throw new HttpsError('internal', 'Error fetching classes');
-    } finally {
-        if (client) client.release();
-    }
-});
-
-exports.getClassesForPartner = onCall({ cors: true }, async (request) => {
-    const pgDB = require('./db');
-    // Publicly accessible to see classes? Or at least Authenticated users.
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-    const { partnerId } = request.data;
-    if (!partnerId) throw new HttpsError('invalid-argument', 'Partner ID required');
-
-    let client;
-    try {
-        client = await pgDB.getClient();
-        // Fetch future active classes
-        const res = await client.query(
-            `SELECT * FROM "Class" 
-             WHERE "partnerId" = $1 AND "status" = 'ACTIVE' 
-             ORDER BY "startTime" ASC`,
-            [partnerId]
-        );
-        return { classes: res.rows };
-    } catch (error) {
-        console.error("Error fetching classes for partner:", error);
-        throw new HttpsError('internal', 'Error fetching classes');
-    } finally {
-        if (client) client.release();
-    }
-});

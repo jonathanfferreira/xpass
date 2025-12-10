@@ -16,3 +16,22 @@ mutation CreateBooking($userId: String!, $classId: UUID!, $cost: Int!) @auth(lev
     status: "CONFIRMED"
   })
 }
+
+mutation CreateClass(
+  $partnerId: UUID!,
+  $name: String!,
+  $startTime: Timestamp!,
+  $endTime: Timestamp!,
+  $capacity: Int!,
+  $offPeakPrice: Int
+) @auth(level: USER) {
+  class_insert(data: {
+    partner: { id: $partnerId },
+    name: $name,
+    startTime: $startTime,
+    endTime: $endTime,
+    capacity: $capacity,
+    bookedCount: 0,
+    offPeakPrice: $offPeakPrice
+  })
+}

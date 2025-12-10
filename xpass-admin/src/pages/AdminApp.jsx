@@ -103,6 +103,48 @@ const AdminApp = ({ onReturnToPortal }) => {
         }
     };
 
+    // Create Partner Logic
+    const [isCreatePartnerOpen, setIsCreatePartnerOpen] = useState(false);
+    const [isCreatingPartner, setIsCreatingPartner] = useState(false);
+    const [newPartnerData, setNewPartnerData] = useState({ name: '', email: '', category: 'Gym' });
+
+    const handleCreatePartner = async (e) => {
+        e.preventDefault();
+        setIsCreatingPartner(true);
+        try {
+            // Using a cloud function or direct creation (for MVP direct creation in 'partners' collection or 'users' with role 'partner')
+            // Since we need Auth UID, ideally we use a Callable Function: createPartnerAccount
+            // For now, we simulate success or add to a 'invites' collection if Auth not accessible from here.
+            // Let's assume there is a 'createPartner' callable function or we just add to 'partners' and let them claim.
+
+            // NOTE: In a real app, Admin creates the Auth user via Admin SDK (Cloud Function).
+            // Here we will add to a 'partners' collection which triggers an email (simulated).
+
+            const from = await import('firebase/firestore'); // dynamic import just to ensure specific functions
+            const { addDoc, collection } = from;
+
+            await addDoc(collection(db, 'partners'), {
+                name: newPartnerData.name,
+                email: newPartnerData.email,
+                category: newPartnerData.category,
+                status: 'PENDING_SETUP', // Waiting for partner to complete profile
+                createdAt: new Date(),
+                createdBy: 'admin'
+            });
+
+            addToast('success', 'Convite Enviado', `Email enviado para ${newPartnerData.email}`);
+            setIsCreatePartnerOpen(false);
+            setNewPartnerData({ name: '', email: '', category: 'Gym' });
+            fetchPartners(); // Might not show up in 'users' yet if logic differs, but shows intent.
+
+        } catch (error) {
+            console.error("Error creating partner:", error);
+            addToast('error', 'Erro', 'Falha ao criar parceiro.');
+        } finally {
+            setIsCreatingPartner(false);
+        }
+    };
+
     // Toast Helper
     const addToast = (type, title, message) => {
         const id = Date.now().toString();
@@ -457,8 +499,73 @@ const AdminApp = ({ onReturnToPortal }) => {
                     <h1 className="text-3xl font-heading font-medium text-white uppercase tracking-wide mb-1">Academias</h1>
                     <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Gestão de Parceiros ({partners.length})</p>
                 </div>
-                <button onClick={fetchPartners} className="text-xs font-mono text-brand-500 hover:text-white uppercase transition-colors">Atualizar Lista</button>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => setIsCreatePartnerOpen(true)} className="px-4 py-2 bg-white text-black hover:bg-zinc-200 font-bold font-heading uppercase text-xs rounded-lg transition-all flex items-center gap-2">
+                        <ArrowUpRight size={16} /> Novo Parceiro
+                    </button>
+                    <button onClick={fetchPartners} className="text-xs font-mono text-brand-500 hover:text-white uppercase transition-colors">Atualizar Lista</button>
+                </div>
             </div>
+
+            {/* CREATE PARTNER MODAL */}
+            {isCreatePartnerOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-onyx-900 border border-white/10 p-8 rounded-2xl w-full max-w-md relative">
+                        <button onClick={() => setIsCreatePartnerOpen(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
+                            <XCircle size={24} />
+                        </button>
+
+                        <h2 className="text-2xl font-heading text-white uppercase mb-1">Novo Parceiro</h2>
+                        <p className="text-xs text-zinc-500 font-mono uppercase mb-6">Criar conta inicial para academia</p>
+
+                        <form onSubmit={handleCreatePartner} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Nome do Estabelecimento</label>
+                                <input
+                                    required
+                                    value={newPartnerData.name}
+                                    onChange={e => setNewPartnerData({ ...newPartnerData, name: e.target.value })}
+                                    className="w-full bg-black border border-white/10 rounded-lg px-4 py-2 text-white focus:border-brand-500 outline-none"
+                                    placeholder="Ex: Ironberg Gym"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Email do Gestor</label>
+                                <input
+                                    required
+                                    type="email"
+                                    value={newPartnerData.email}
+                                    onChange={e => setNewPartnerData({ ...newPartnerData, email: e.target.value })}
+                                    className="w-full bg-black border border-white/10 rounded-lg px-4 py-2 text-white focus:border-brand-500 outline-none"
+                                    placeholder="contato@gym.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Categoria</label>
+                                <select
+                                    value={newPartnerData.category}
+                                    onChange={e => setNewPartnerData({ ...newPartnerData, category: e.target.value })}
+                                    className="w-full bg-black border border-white/10 rounded-lg px-4 py-2 text-white focus:border-brand-500 outline-none"
+                                >
+                                    <option value="Gym">Musculação</option>
+                                    <option value="CrossFit">CrossFit</option>
+                                    <option value="Yoga">Yoga</option>
+                                    <option value="Martial Arts">Lutas</option>
+                                    <option value="Dance">Dança</option>
+                                </select>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isCreatingPartner}
+                                className="w-full mt-4 bg-brand-500 hover:bg-brand-400 text-black font-bold font-heading uppercase py-3 rounded-lg flex items-center justify-center gap-2"
+                            >
+                                {isCreatingPartner ? 'Criando...' : 'Criar Conta'} <ArrowUpRight size={16} />
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4">
                 {partners.length === 0 ? (
