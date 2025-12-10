@@ -45,12 +45,16 @@ exports.bookStudio = onCall({ cors: true }, async (request) => {
         throw new HttpsError('unauthenticated', 'Você precisa estar logado para agendar.');
     }
 
-    const { studioId, studioName, studioImage, creditCost = 1 } = request.data;
+    const { studioId, studioName, studioImage, creditCost = 1, selectedDate, selectedTime } = request.data;
     const userId = request.auth.uid;
 
     if (!studioId || !studioName) {
         throw new HttpsError('invalid-argument', 'Dados do estúdio são obrigatórios.');
     }
+
+    // Default time/date if not provided (Backward Compatibility)
+    const dateToBook = selectedDate || new Date().toISOString().split('T')[0];
+    const timeToBook = selectedTime || '08:00';
 
     try {
         // 1. Buscar usuário
@@ -77,8 +81,8 @@ exports.bookStudio = onCall({ cors: true }, async (request) => {
             userId: userId,
             userName: userData.name || 'Aluno',
             userEmail: userData.email || null,
-            date: new Date().toISOString().split('T')[0],
-            time: '08:00',
+            date: dateToBook,
+            time: timeToBook,
             status: 'confirmed',
             creditCost: creditCost,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -98,7 +102,8 @@ exports.bookStudio = onCall({ cors: true }, async (request) => {
             bookingId: bookingRef.id,
             amount: -creditCost,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            status: 'COMPLETED'
+            status: 'COMPLETED',
+            metadata: { date: dateToBook, time: timeToBook }
         });
 
         // 6. Criar notificação
@@ -106,10 +111,10 @@ exports.bookStudio = onCall({ cors: true }, async (request) => {
             userId,
             'booking',
             'Reserva Confirmada',
-            `Sua reserva em ${studioName} foi confirmada!`
+            `Sua reserva em ${studioName} para ${dateToBook} às ${timeToBook} foi confirmada!`
         );
 
-        console.log(`Booking created: ${bookingRef.id} for user ${userId}`);
+        console.log(`Booking created: ${bookingRef.id} for user ${userId} at ${timeToBook}`);
 
         return {
             success: true,
@@ -120,6 +125,64 @@ exports.bookStudio = onCall({ cors: true }, async (request) => {
     } catch (error) {
         console.error("Error booking studio:", error);
         throw new HttpsError('internal', error.message || 'Erro ao fazer reserva.');
+    }
+});
+
+exports.checkInWithoutBooking = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Login necessário.');
+    }
+
+    const { studioId, studioName, creditCost = 1 } = request.data;
+    const userId = request.auth.uid;
+
+    if (!studioId) {
+        throw new HttpsError('invalid-argument', 'Studio ID obrigatório.');
+    }
+
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists) throw new HttpsError('not-found', 'Usuário não encontrado.');
+
+        const userData = userDoc.data();
+        const currentCredits = userData.credits || 0;
+
+        if (currentCredits < creditCost) {
+            throw new HttpsError('failed-precondition', 'Saldo insuficiente.');
+        }
+
+        // Deduct
+        await userRef.update({
+            credits: currentCredits - creditCost
+        });
+
+        // Record Transaction (Type: CHECKIN)
+        const txRef = await db.collection('transactions').add({
+            type: 'CHECKIN',
+            userId: userId,
+            studioId: studioId,
+            studioName: studioName || 'Studio',
+            amount: -creditCost,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            status: 'COMPLETED',
+            method: 'JUST_GO'
+        });
+
+        // Notification
+        await createNotification(
+            userId,
+            'checkin',
+            'Check-in Realizado! 💪',
+            `Bom treino em ${studioName}!`
+        );
+
+        return { success: true, message: 'Check-in realizado!', transactionId: txRef.id };
+
+    } catch (error) {
+        console.error("Check-in Error:", error);
+        throw new HttpsError('internal', error.message);
     }
 });
 
@@ -932,77 +995,7 @@ exports.seedProducts = onCall({ cors: true }, async (request) => {
     return { success: true, message: "Produtos populados com sucesso!" };
 });
 
-// ============================================================================
-// 6. AI COACH (GEMINI API) 🤖
-// ============================================================================
-
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-// TO DO: Mover para variável de ambiente real (functions config)
-const GEMINI_API_KEY = "AIzaSyDzZnPaob33o1V5A3I1PIqbO5x35WzIkwc";
-
-exports.askAICoach = onCall({ cors: true }, async (request) => {
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'Login necessário para falar com o Coach.');
-    }
-
-    const { message, context = {} } = request.data;
-    const userId = request.auth.uid;
-
-    try {
-        // 1. Verificar se temos API Key (Simulação vs Real)
-        if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_API_KEY_HERE") {
-            // MODO DEMO (Sem Key)
-            console.warn("⚠️ GEMINI_API_KEY não configurada. Usando resposta mockada.");
-
-            let mockResponse = "Estou calibrando meus sensores. Configure minha API Key para eu te ajudar de verdade! 🤖";
-            const msgLower = message.toLowerCase();
-
-            if (msgLower.includes("treino") || msgLower.includes("sugerir")) {
-                mockResponse = "Baseado no seu perfil, sugiro um treino HIIT de 20 minutos hoje. Que tal agendar uma aula de Cross Training?";
-            } else if (msgLower.includes("dieta") || msgLower.includes("comer")) {
-                mockResponse = "Lembre-se de manter a proteína alta! O Whey Protein da nossa loja está em promoção.";
-            } else if (msgLower.includes("oi") || msgLower.includes("olá")) {
-                mockResponse = `Olá, Atleta! Sou seu XPASS AI Coach. Como posso ajudar sua performance hoje?`;
-            }
-
-            return {
-                response: mockResponse,
-                isMock: true
-            };
-        }
-
-        // 2. MODO REAL (Com Gemini)
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-        const userContextString = `
-            Contexto do Usuário:
-            - Nome: ${context.userName || 'Atleta'}
-            - Créditos: ${context.userCredits || 0}
-            - Último Treino: ${context.lastWorkout || 'Nenhum recente'}
-            - Objetivo: Melhorar performance e saúde.
-            
-            Você é o "XPASS AI Coach", um assistente virtual futurista, motivador e especialista em fitness dentro do ecossistema XPASS.
-            Seu tom é enérgico, direto e levemente "cyberpunk" (use emojis tech como 🤖, 🚀, ⚡).
-            Responda de forma concisa (máximo 3 frases).
-        `;
-
-        const fullPrompt = `${userContextString}\n\nUsuário: ${message}\nAI Coach:`;
-
-        const result = await model.generateContent(fullPrompt);
-        const aiResponse = result.response.text();
-
-        return {
-            response: aiResponse,
-            isMock: false
-        };
-
-    } catch (error) {
-        console.error("Erro no AI Coach:", error);
-        throw new HttpsError('internal', 'Falha ao conectar com o cérebro digital.');
-    }
-});
+// [REMOVED DUPLICATE askAICoach - See implementation below]
 
 exports.analyzeFood = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
@@ -1167,8 +1160,19 @@ exports.askAICoach = onCall({ cors: true }, async (request) => {
     // Import Gemini AI
     const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+    // Verify PRO Status
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    if (!userData.isPro) {
+        console.log(`⛔ User ${userId} blocked from AI Coach (Not PRO)`);
+        throw new HttpsError('permission-denied', 'Only PRO users can access the AI Coach.');
+    }
+
     // Access your API key as an environment variable
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    // Note: In production use functions.config().gemini.key or process.env.GEMINI_API_KEY if set
+    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyDzZnPaob33o1V5A3I1PIqbO5x35WzIkwc";
+    const genAI = new GoogleGenerativeAI(apiKey);
 
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
