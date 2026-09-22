@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-DEFAULT: #FF5200;
+  --color-brand-500: #FF5200;
+  --color-brand-400: #FF7A3D;
+  --color-brand-600: #CC4200;
+  --color-brand-glow: rgba(255, 82, 0, 0.5);
+
+  --color-onyx-950: #000000;
+  --color-onyx-900: #0A0A0A;
+  --color-onyx-800: #141414;
+  --color-onyx-700: #1F1F1F;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-heading: 'Oswald', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+
+/* Custom Scrollbar for horizontal lists */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Neon Text Glow */
+.text-glow {
+  text-shadow: 0 0 10px rgba(255, 82, 0, 0.5);
+}
+
+/* Glass background helper */
+.bg-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.00) 100%);
+}

@@ -12,6 +12,7 @@
 *.env.test.local
 *.env.production.local
 .env*
+!.env.example
 secrets/
 **/serviceAccountKey.json
 **/firebase-adminsdk*.json
