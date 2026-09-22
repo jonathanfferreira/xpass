@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, SlidersHorizontal, ShoppingBag, Zap, ChevronLeft, Settings, Clock, Heart, Users, Award, LogOut, ChevronRight, X, Calendar, MapPin, Check, Plus, Flame, Utensils, Scan, CreditCard as CardIcon, QrCode, ShieldCheck } from 'lucide-react';
+import { Bell, Search, SlidersHorizontal, ShoppingBag, Zap, ChevronLeft, Settings, Clock, Heart, Users, Award, LogOut, ChevronRight, X, Calendar, MapPin, Check, Plus, Flame, Utensils, Scan, CreditCard as CardIcon, QrCode, ShieldCheck, Monitor, Smartphone } from 'lucide-react';
 import BottomNav from './components/BottomNav';
 import CreditCard from './components/CreditCard';
 import QuickActions from './components/QuickActions';
@@ -22,6 +22,7 @@ interface StudentAppProps {
 
 const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
   const [currentTab, setCurrentTab] = useState<Tab>('home');
+  const [viewMode, setViewMode] = useState<'responsive' | 'mobile-mockup'>('responsive');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -241,10 +242,10 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
 
   // --- TAB: HOME ---
   const renderHome = () => (
-    <div className="flex flex-col space-y-8 pb-36 animate-in fade-in duration-500 max-w-lg mx-auto">
+    <div className="space-y-8 pb-36 animate-in fade-in duration-500">
       
-      {/* Header */}
-      <header className="flex justify-between items-center px-6 pt-8">
+      {/* Mobile-only / In-app Header */}
+      <header className="flex justify-between items-center pt-2 sm:pt-4">
         <div 
           className="flex items-center gap-4 cursor-pointer hover:opacity-90 transition-opacity"
           onClick={() => setIsProfileOpen(true)}
@@ -253,7 +254,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
             <img 
               src={currentUser.avatarUrl} 
               alt="Profile" 
-              className="w-12 h-12 rounded-full border-2 border-brand-500/40 object-cover"
+              className="w-12 h-12 rounded-full border-2 border-brand-500/40 object-cover shadow-md"
             />
             <div className="absolute bottom-0 right-0 w-3 h-3 bg-brand-500 rounded-full border-2 border-black"></div>
           </div>
@@ -265,9 +266,15 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
         
         <div className="flex items-center gap-2">
           <button 
+            onClick={() => setIsPassModalOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500 hover:text-black transition-all text-xs font-heading font-bold uppercase cursor-pointer"
+          >
+            <QrCode size={14} /> Passe Digital
+          </button>
+          <button 
             onClick={onReturnToPortal}
-            className="text-[10px] font-mono border border-white/10 px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:border-brand-500/50 transition-colors"
-            title="Voltar ao seletor de interfaces"
+            className="text-[10px] font-mono border border-white/10 px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-white hover:border-brand-500/50 transition-colors cursor-pointer"
+            title="Voltar ao Portal Hub"
           >
             PORTAL
           </button>
@@ -281,93 +288,129 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
         </div>
       </header>
 
-      {/* Energy Core Card */}
-      <section className="px-6">
-        <CreditCard 
-          credits={userCredits} 
-          onRecharge={() => setIsRechargeModalOpen(true)} 
-          onViewHistory={() => setIsHistoryModalOpen(true)}
-        />
-      </section>
+      {/* Responsive Grid: 2 Columns on Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* Left Column (lg:col-span-7) */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Energy Core Card */}
+          <CreditCard 
+            credits={userCredits} 
+            onRecharge={() => setIsRechargeModalOpen(true)} 
+            onViewHistory={() => setIsHistoryModalOpen(true)}
+          />
 
-      {/* Quick Actions Bar */}
-      <section className="px-6">
-        <QuickActions onAction={handleQuickAction} />
-      </section>
+          {/* Quick Actions Bar */}
+          <QuickActions onAction={handleQuickAction} />
 
-      {/* Upcoming Bookings */}
-      {bookings.length > 0 && (
-        <section className="px-6">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="font-heading font-semibold text-lg text-white uppercase tracking-wide">Próximos Treinos</h2>
-            <span className="text-xs text-brand-500 font-mono">{bookings.length} ATIVOS</span>
-          </div>
-          <div className="space-y-2">
-            {bookings.slice(0, 2).map((b) => (
-              <div key={b.id} className="p-3.5 rounded-xl bg-onyx-900 border border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
-                    <Calendar size={18} />
-                  </div>
-                  <div>
-                    <h4 className="font-heading font-bold text-white text-sm uppercase">{b.title}</h4>
-                    <p className="text-zinc-400 text-xs font-mono">{b.studioName} • {b.date} às {b.time}</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30">CONFIRMADO</span>
+          {/* Upcoming Bookings */}
+          {bookings.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h2 className="font-heading font-semibold text-lg text-white uppercase tracking-wide">Próximos Treinos</h2>
+                <span className="text-xs text-brand-500 font-mono font-bold">{bookings.length} ATIVOS</span>
               </div>
-            ))}
+              <div className="space-y-2">
+                {bookings.slice(0, 2).map((b) => (
+                  <div key={b.id} className="p-3.5 rounded-xl bg-onyx-900 border border-white/10 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
+                        <Calendar size={18} />
+                      </div>
+                      <div>
+                        <h4 className="font-heading font-bold text-white text-sm uppercase">{b.title}</h4>
+                        <p className="text-zinc-400 text-xs font-mono">{b.studioName} • {b.date} às {b.time}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30 font-bold">CONFIRMADO</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Quick Category Access */}
+          <section className="space-y-3">
+            <div className="flex justify-between items-end">
+              <h2 className="font-heading font-semibold text-lg text-white uppercase tracking-wide">Modalidades</h2>
+              <span 
+                 onClick={() => setCurrentTab('explore')}
+                 className="text-xs text-brand-500 font-mono cursor-pointer hover:underline"
+              >
+                VER_TODAS ↗
+              </span>
+            </div>
+            <CategoryGrid 
+              categories={ACTIVITY_CATEGORIES.slice(0, 6)} 
+              selectedCategory={selectedCategory}
+              onSelect={handleCategorySelect}
+            />
+          </section>
+        </div>
+
+        {/* Right Column (lg:col-span-5) */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Daily Performance Widget */}
+          <div className="p-6 rounded-2xl bg-onyx-900 border border-white/10 space-y-4 shadow-xl">
+             <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                <span className="text-xs font-mono text-zinc-400 uppercase">Resumo Diário de Performance</span>
+                <span className="text-[10px] font-mono text-brand-500 font-bold">HOJE</span>
+             </div>
+             <div className="grid grid-cols-2 gap-3">
+                <div className="p-3.5 bg-onyx-950 rounded-xl border border-white/5">
+                   <span className="text-[10px] font-mono text-zinc-500 uppercase block">Meta Calórica</span>
+                   <span className="text-lg font-mono font-bold text-white mt-1 block">{macros.calories.current} / {macros.calories.target}</span>
+                   <span className="text-[10px] font-mono text-zinc-500">kcal consumidas</span>
+                </div>
+                <div className="p-3.5 bg-onyx-950 rounded-xl border border-white/5">
+                   <span className="text-[10px] font-mono text-zinc-500 uppercase block">Plano Ativo</span>
+                   <span className="text-lg font-mono font-bold text-brand-500 mt-1 block">Black Diamond</span>
+                   <span className="text-[10px] font-mono text-green-400">Rollover Ativo</span>
+                </div>
+             </div>
+             <button 
+                onClick={() => setIsPassModalOpen(true)}
+                className="w-full py-3 bg-brand-500/10 hover:bg-brand-500 text-brand-400 hover:text-black border border-brand-500/30 rounded-xl font-heading font-bold text-xs uppercase transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+             >
+                <QrCode size={16} /> Abrir Passe Digital (QR Code) ↗
+             </button>
           </div>
-        </section>
-      )}
 
-      {/* Quick Category Access */}
-      <section className="px-6">
-        <div className="flex justify-between items-end mb-3">
-          <h2 className="font-heading font-semibold text-lg text-white uppercase tracking-wide">Modalidades</h2>
-          <span 
-             onClick={() => setCurrentTab('explore')}
-             className="text-xs text-brand-500 font-mono cursor-pointer hover:underline"
-          >
-            VER_TODAS
-          </span>
+          {/* Featured Studios */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="font-heading font-semibold text-lg text-white uppercase tracking-wide">Estúdios Recomendados</h2>
+              <span onClick={() => setCurrentTab('explore')} className="text-xs font-mono text-brand-500 cursor-pointer hover:underline">Ver Todos ↗</span>
+            </div>
+            <div className="flex flex-col gap-4">
+              {studios.slice(0, 3).map((studio) => (
+                <StudioCard key={studio.id} studio={studio} onClick={() => handleStudioClick(studio)} />
+              ))}
+            </div>
+          </section>
         </div>
-        <CategoryGrid 
-          categories={ACTIVITY_CATEGORIES.slice(0, 6)} 
-          selectedCategory={selectedCategory}
-          onSelect={handleCategorySelect}
-        />
-      </section>
 
-      {/* Featured Studios */}
-      <section className="flex flex-col space-y-4">
-        <div className="px-6 flex justify-between items-center">
-          <h2 className="font-heading font-semibold text-lg text-white uppercase tracking-wide">Estúdios Próximos</h2>
-          <span className="text-xs font-mono text-zinc-500">São Paulo, SP</span>
-        </div>
-        <div className="px-6 flex flex-col gap-4">
-          {studios.slice(0, 4).map((studio) => (
-            <StudioCard key={studio.id} studio={studio} onClick={() => handleStudioClick(studio)} />
-          ))}
-        </div>
-      </section>
+      </div>
     </div>
   );
 
   // --- TAB: EXPLORE ---
   const renderExplore = () => (
-     <div className="flex flex-col min-h-screen px-6 pt-8 bg-onyx-950 pb-36 animate-in slide-in-from-right duration-300 max-w-lg mx-auto">
-        <h2 className="font-heading font-bold text-3xl text-white uppercase mb-6">Explorar Estúdios</h2>
+     <div className="space-y-6 pb-36 animate-in slide-in-from-right duration-300">
+        <div>
+           <span className="text-[10px] font-mono text-brand-500 uppercase tracking-widest">Rede Credenciada XPASS</span>
+           <h2 className="font-heading font-bold text-3xl text-white uppercase">Explorar Estúdios</h2>
+        </div>
         
         {/* Search Bar */}
-        <div className="relative mb-6">
+        <div className="relative">
            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
            <input 
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar estúdio, modalidade, bairro..." 
-              className="w-full bg-onyx-900 border border-white/10 rounded-xl py-3.5 pl-12 pr-12 text-white font-mono text-sm placeholder:text-zinc-600 focus:outline-none focus:border-brand-500/50 transition-colors"
+              placeholder="Buscar estúdio, modalidade (ex: Musculação, CrossFit) ou bairro..." 
+              className="w-full bg-onyx-900 border border-white/10 rounded-xl py-3.5 pl-12 pr-12 text-white font-mono text-sm placeholder:text-zinc-600 focus:outline-none focus:border-brand-500/50 transition-colors shadow-lg"
            />
            {searchQuery && (
               <button 
@@ -380,10 +423,10 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
         </div>
 
         {/* Filter Chips */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
            <button 
               onClick={() => setSelectedCategory('Todos')}
-              className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-mono uppercase border transition-all cursor-pointer ${selectedCategory === 'Todos' ? 'bg-brand-500 text-black font-bold border-brand-500 shadow-md shadow-brand-500/20' : 'bg-onyx-900 text-zinc-400 border-white/10'}`}
+              className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-mono uppercase border transition-all cursor-pointer ${selectedCategory === 'Todos' ? 'bg-brand-500 text-black font-bold border-brand-500 shadow-md shadow-brand-500/20' : 'bg-onyx-900 text-zinc-400 border-white/10 hover:border-white/20'}`}
            >
               Todos
            </button>
@@ -391,17 +434,17 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
               <button 
                  key={cat.id}
                  onClick={() => setSelectedCategory(cat.name)}
-                 className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-mono uppercase border transition-all cursor-pointer ${selectedCategory === cat.name ? 'bg-brand-500 text-black font-bold border-brand-500 shadow-md shadow-brand-500/20' : 'bg-onyx-900 text-zinc-400 border-white/10'}`}
+                 className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-mono uppercase border transition-all cursor-pointer ${selectedCategory === cat.name ? 'bg-brand-500 text-black font-bold border-brand-500 shadow-md shadow-brand-500/20' : 'bg-onyx-900 text-zinc-400 border-white/10 hover:border-white/20'}`}
               >
                  {cat.name}
               </button>
            ))}
         </div>
 
-        {/* Results */}
-        <div className="space-y-4">
+        {/* Results: Responsive Grid (1 col mobile, 2 cols tablet, 3 cols desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {filteredStudios.length === 0 ? (
-             <div className="text-center py-16 text-zinc-500 font-mono text-sm">
+             <div className="col-span-full text-center py-16 text-zinc-500 font-mono text-sm">
                 Nenhum estúdio encontrado para este filtro.
              </div>
            ) : (
@@ -415,7 +458,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
 
   // --- TAB: WELLNESS & MEU PLANO ---
   const renderWellness = () => (
-    <div className="flex flex-col min-h-screen px-6 pt-8 bg-onyx-950 pb-36 animate-in slide-in-from-right duration-300 max-w-lg mx-auto space-y-8">
+    <div className="space-y-8 pb-36 animate-in slide-in-from-right duration-300">
       <div className="flex justify-between items-center">
         <div>
            <span className="text-[10px] font-mono text-brand-500 uppercase tracking-widest">Rotina & Desempenho</span>
@@ -423,159 +466,179 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
         </div>
         <button 
            onClick={() => setIsFoodScannerOpen(true)}
-           className="flex items-center gap-1.5 bg-brand-500 text-black font-heading font-bold px-3 py-2 rounded-xl text-xs uppercase tracking-wide shadow-[0_0_15px_rgba(255,82,0,0.3)] hover:bg-brand-400 transition-all cursor-pointer"
+           className="flex items-center gap-1.5 bg-brand-500 text-black font-heading font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wide shadow-[0_0_15px_rgba(255,82,0,0.3)] hover:bg-brand-400 transition-all cursor-pointer"
         >
-           <Scan size={14} /> Scan Alimento
+           <Scan size={16} /> Scan Alimento
         </button>
       </div>
 
-      {/* Macros Section */}
-      <div className="p-5 rounded-2xl bg-onyx-900 border border-white/10">
-        <div className="flex justify-between items-center mb-4">
-           <h3 className="font-heading font-bold uppercase text-white tracking-wide">Macronutrientes Diários</h3>
-           <span className="text-xs font-mono text-brand-500">{macros.calories.current} / {macros.calories.target} kcal</span>
-        </div>
-        
-        {/* Progress Bar */}
-        <div className="w-full h-2 bg-onyx-950 rounded-full overflow-hidden mb-5">
-           <div 
-             className="h-full bg-gradient-to-r from-brand-500 to-orange-400 rounded-full transition-all duration-500"
-             style={{ width: `${Math.min(100, (macros.calories.current / macros.calories.target) * 100)}%` }}
-           />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Left Column: Macros & Nutrition */}
+        <div className="space-y-6">
+           {/* Macros Section */}
+           <div className="p-6 rounded-2xl bg-onyx-900 border border-white/10 space-y-4 shadow-xl">
+             <div className="flex justify-between items-center">
+                <h3 className="font-heading font-bold uppercase text-white tracking-wide">Macronutrientes Diários</h3>
+                <span className="text-xs font-mono text-brand-500 font-bold">{macros.calories.current} / {macros.calories.target} kcal</span>
+             </div>
+             
+             {/* Progress Bar */}
+             <div className="w-full h-2.5 bg-onyx-950 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-brand-500 to-orange-400 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (macros.calories.current / macros.calories.target) * 100)}%` }}
+                />
+             </div>
 
-        <div className="grid grid-cols-3 gap-3">
-           <div className="p-3 bg-onyx-950 rounded-xl border border-white/5 text-center">
-              <span className="text-lg font-mono font-bold text-white">{macros.protein.current}g</span>
-              <span className="block text-[9px] font-mono text-zinc-500 uppercase mt-0.5">Proteína ({macros.protein.target}g)</span>
+             <div className="grid grid-cols-3 gap-3 pt-2">
+                <div className="p-3 bg-onyx-950 rounded-xl border border-white/5 text-center">
+                   <span className="text-lg font-mono font-bold text-white">{macros.protein.current}g</span>
+                   <span className="block text-[9px] font-mono text-zinc-500 uppercase mt-0.5">Proteína ({macros.protein.target}g)</span>
+                </div>
+                <div className="p-3 bg-onyx-950 rounded-xl border border-white/5 text-center">
+                   <span className="text-lg font-mono font-bold text-white">{macros.carbs.current}g</span>
+                   <span className="block text-[9px] font-mono text-zinc-500 uppercase mt-0.5">Carbos ({macros.carbs.target}g)</span>
+                </div>
+                <div className="p-3 bg-onyx-950 rounded-xl border border-white/5 text-center">
+                   <span className="text-lg font-mono font-bold text-white">{macros.fats.current}g</span>
+                   <span className="block text-[9px] font-mono text-zinc-500 uppercase mt-0.5">Gorduras ({macros.fats.target}g)</span>
+                </div>
+             </div>
            </div>
-           <div className="p-3 bg-onyx-950 rounded-xl border border-white/5 text-center">
-              <span className="text-lg font-mono font-bold text-white">{macros.carbs.current}g</span>
-              <span className="block text-[9px] font-mono text-zinc-500 uppercase mt-0.5">Carbos ({macros.carbs.target}g)</span>
-           </div>
-           <div className="p-3 bg-onyx-950 rounded-xl border border-white/5 text-center">
-              <span className="text-lg font-mono font-bold text-white">{macros.fats.current}g</span>
-              <span className="block text-[9px] font-mono text-zinc-500 uppercase mt-0.5">Gorduras ({macros.fats.target}g)</span>
-           </div>
-        </div>
-      </div>
 
-      {/* Workout Routine */}
-      <div className="space-y-3">
-         <div className="flex justify-between items-center">
-            <h3 className="font-heading font-bold uppercase text-white tracking-wide">Treino de Hoje (Inferiores & Core)</h3>
-            <span className="text-xs font-mono text-zinc-500">{workout.filter(w => w.completed).length}/{workout.length} FEITOS</span>
-         </div>
-         
-         <div className="space-y-2">
-            {workout.map(exercise => (
-              <div 
-                key={exercise.id}
-                onClick={() => toggleExercise(exercise.id)}
-                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
-                   exercise.completed 
-                     ? 'bg-onyx-900/50 border-green-500/30 opacity-70' 
-                     : 'bg-onyx-900 border-white/10 hover:border-brand-500/40'
-                }`}
-              >
-                 <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center border ${exercise.completed ? 'bg-green-500 border-green-500 text-black' : 'border-zinc-700'}`}>
-                       {exercise.completed && <Check size={14} strokeWidth={3} />}
+           {/* Today's Meals */}
+           <div className="p-6 rounded-2xl bg-onyx-900 border border-white/10 space-y-4 shadow-xl">
+              <h3 className="font-heading font-bold uppercase text-white tracking-wide">Refeições Registradas Hoje</h3>
+              <div className="space-y-2">
+                 {meals.map(meal => (
+                    <div key={meal.id} className="p-3.5 bg-onyx-950 border border-white/5 rounded-xl flex justify-between items-center">
+                       <div>
+                          <h5 className="font-heading font-bold text-white text-sm uppercase">{meal.name}</h5>
+                          <p className="text-[11px] font-mono text-zinc-500">{meal.foodItems.join(', ')}</p>
+                       </div>
+                       <div className="text-right">
+                          <span className="font-mono text-sm font-bold text-brand-500">{meal.calories} kcal</span>
+                          <span className="block text-[10px] font-mono text-zinc-600">{meal.timestamp}</span>
+                       </div>
                     </div>
-                    <div>
-                       <h4 className={`font-heading font-bold text-sm uppercase ${exercise.completed ? 'line-through text-zinc-500' : 'text-white'}`}>
-                          {exercise.name}
-                       </h4>
-                       <p className="text-xs font-mono text-zinc-500">{exercise.sets} séries × {exercise.reps}</p>
-                    </div>
-                 </div>
-                 <span className="text-[10px] font-mono text-brand-500">+15 XP</span>
+                 ))}
               </div>
-            ))}
-         </div>
-      </div>
+           </div>
+        </div>
 
-      {/* Meals Logged */}
-      <div className="space-y-3">
-         <h3 className="font-heading font-bold uppercase text-white tracking-wide">Refeições de Hoje</h3>
-         <div className="space-y-2">
-            {meals.map(meal => (
-               <div key={meal.id} className="p-3 bg-onyx-900 border border-white/5 rounded-xl flex justify-between items-center">
-                  <div>
-                     <h5 className="font-heading font-bold text-white text-sm uppercase">{meal.name}</h5>
-                     <p className="text-[11px] font-mono text-zinc-500">{meal.foodItems.join(', ')}</p>
-                  </div>
-                  <div className="text-right">
-                     <span className="font-mono text-sm font-bold text-brand-500">{meal.calories} kcal</span>
-                     <span className="block text-[10px] font-mono text-zinc-600">{meal.timestamp}</span>
-                  </div>
-               </div>
-            ))}
-         </div>
+        {/* Right Column: Workout Checklist */}
+        <div className="p-6 rounded-2xl bg-onyx-900 border border-white/10 space-y-4 shadow-xl">
+           <div className="flex justify-between items-center border-b border-white/10 pb-3">
+              <h3 className="font-heading font-bold uppercase text-white tracking-wide">Rotina de Treino Recomendada</h3>
+              <span className="text-xs font-mono text-green-400 font-bold">
+                 {workout.filter(w => w.completed).length}/{workout.length} CONCLUÍDOS
+              </span>
+           </div>
+           
+           <div className="space-y-2.5">
+              {workout.map(exercise => (
+                 <div 
+                   key={exercise.id}
+                   onClick={() => toggleExercise(exercise.id)}
+                   className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                      exercise.completed 
+                        ? 'bg-onyx-900/50 border-green-500/30 opacity-70' 
+                        : 'bg-onyx-950 border-white/10 hover:border-brand-500/40'
+                   }`}
+                 >
+                    <div className="flex items-center gap-3">
+                       <div className={`w-6 h-6 rounded-lg flex items-center justify-center border ${exercise.completed ? 'bg-green-500 border-green-500 text-black' : 'border-zinc-700'}`}>
+                          {exercise.completed && <Check size={14} strokeWidth={3} />}
+                       </div>
+                       <div>
+                          <h4 className={`font-heading font-bold text-sm uppercase ${exercise.completed ? 'line-through text-zinc-500' : 'text-white'}`}>
+                             {exercise.name}
+                          </h4>
+                          <p className="text-xs font-mono text-zinc-500">{exercise.sets} séries × {exercise.reps}</p>
+                       </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-brand-500 font-bold">+15 XP</span>
+                 </div>
+              ))}
+           </div>
+        </div>
       </div>
     </div>
   );
 
   // --- TAB: CREDITS ---
   const renderCredits = () => (
-    <div className="flex flex-col min-h-screen px-6 pt-8 bg-onyx-950 pb-36 animate-in slide-in-from-right duration-300 max-w-lg mx-auto space-y-8">
+    <div className="space-y-8 pb-36 animate-in slide-in-from-right duration-300">
       <div>
          <span className="text-[10px] font-mono text-brand-500 uppercase tracking-widest">Carteira XPASS</span>
          <h2 className="font-heading font-bold text-3xl text-white uppercase">Meus Créditos</h2>
       </div>
 
-      <CreditCard 
-        credits={userCredits} 
-        onRecharge={() => setIsRechargeModalOpen(true)} 
-        onViewHistory={() => setIsHistoryModalOpen(true)}
-      />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Credit Card & Plan Details */}
+        <div className="lg:col-span-6 space-y-6">
+           <CreditCard 
+             credits={userCredits} 
+             onRecharge={() => setIsRechargeModalOpen(true)} 
+             onViewHistory={() => setIsHistoryModalOpen(true)}
+           />
 
-      <div className="p-5 bg-onyx-900 border border-white/10 rounded-2xl space-y-4">
-         <h3 className="font-heading font-bold uppercase text-white text-lg">Planos de Assinatura</h3>
-         <div className="p-4 rounded-xl border border-brand-500/50 bg-brand-500/5 flex justify-between items-center">
-            <div>
-               <span className="px-2 py-0.5 rounded bg-brand-500 text-black font-mono font-bold text-[9px] uppercase">PLANO ATUAL</span>
-               <h4 className="font-heading font-bold text-white text-lg mt-1 uppercase">Black Diamond</h4>
-               <p className="text-xs font-mono text-zinc-400">120 Créditos/mês + Rollover automático</p>
-            </div>
-            <span className="font-mono font-bold text-white text-lg">R$ 189/m</span>
-         </div>
-      </div>
+           <div className="p-6 bg-onyx-900 border border-white/10 rounded-2xl space-y-4 shadow-xl">
+              <h3 className="font-heading font-bold uppercase text-white text-lg">Assinatura Ativa</h3>
+              <div className="p-5 rounded-xl border border-brand-500/50 bg-brand-500/5 flex justify-between items-center">
+                 <div>
+                    <span className="px-2.5 py-0.5 rounded bg-brand-500 text-black font-mono font-bold text-[10px] uppercase">PLANO ATUAL</span>
+                    <h4 className="font-heading font-bold text-white text-xl mt-1.5 uppercase">Black Diamond</h4>
+                    <p className="text-xs font-mono text-zinc-400 mt-1">120 Créditos/mês + Rollover cumulativo de saldo</p>
+                 </div>
+                 <span className="font-mono font-bold text-white text-xl">R$ 189/m</span>
+              </div>
+           </div>
+        </div>
 
-      {/* Packages */}
-      <div className="space-y-3">
-         <h3 className="font-heading font-bold uppercase text-white text-base">Pacotes Adicionais</h3>
-         <div className="grid grid-cols-3 gap-3">
-            {[
-              { credits: 20, price: 34.90, bonus: 0 },
-              { credits: 50, price: 79.90, bonus: 5 },
-              { credits: 100, price: 149.90, bonus: 15 },
-            ].map(pkg => (
-              <button 
-                key={pkg.credits}
-                onClick={() => handleRecharge(pkg.credits, pkg.bonus)}
-                className="p-4 rounded-xl bg-onyx-900 border border-white/10 hover:border-brand-500/50 transition-all text-center group cursor-pointer"
-              >
-                 <span className="block font-mono text-2xl font-bold text-white group-hover:text-brand-500 transition-colors">{pkg.credits}</span>
-                 <span className="text-[10px] font-heading uppercase text-brand-500">Créditos</span>
-                 {pkg.bonus > 0 && <span className="block text-[9px] font-mono text-green-400">+{pkg.bonus} bônus</span>}
-                 <span className="block text-xs font-mono text-zinc-400 mt-2">R$ {pkg.price.toFixed(2)}</span>
-              </button>
-            ))}
-         </div>
+        {/* Right Column: Packages */}
+        <div className="lg:col-span-6 space-y-4">
+           <div className="p-6 bg-onyx-900 border border-white/10 rounded-2xl space-y-4 shadow-xl">
+              <div>
+                 <h3 className="font-heading font-bold uppercase text-white text-lg">Comprar Pacotes Avulsos</h3>
+                 <p className="text-xs font-mono text-zinc-400 mt-1">Adicione créditos imediatamente à sua carteira para treinar em qualquer academia.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                 {[
+                   { credits: 20, price: 34.90, bonus: 0, tag: 'Básico' },
+                   { credits: 50, price: 79.90, bonus: 5, tag: 'Popular' },
+                   { credits: 100, price: 149.90, bonus: 15, tag: 'Melhor Valor' },
+                 ].map(pkg => (
+                   <button 
+                     key={pkg.credits}
+                     onClick={() => handleRecharge(pkg.credits, pkg.bonus)}
+                     className="p-5 rounded-xl bg-onyx-950 border border-white/10 hover:border-brand-500/50 transition-all text-center group cursor-pointer flex flex-col justify-between items-center"
+                   >
+                      <span className="text-[10px] font-mono text-zinc-500 uppercase font-bold">{pkg.tag}</span>
+                      <span className="block font-mono text-3xl font-bold text-white group-hover:text-brand-500 transition-colors my-3">{pkg.credits}</span>
+                      <span className="text-[10px] font-heading uppercase text-brand-500">Créditos</span>
+                      {pkg.bonus > 0 && <span className="block text-[9px] font-mono text-green-400 mt-1 font-bold">+{pkg.bonus} bônus</span>}
+                      <span className="block text-sm font-mono text-zinc-300 font-bold mt-3">R$ {pkg.price.toFixed(2)}</span>
+                   </button>
+                 ))}
+              </div>
+           </div>
+        </div>
       </div>
     </div>
   );
 
   // --- TAB: SHOP ---
   const renderShop = () => (
-    <div className="flex flex-col min-h-screen px-6 pt-8 bg-onyx-950 pb-36 animate-in slide-in-from-right duration-300 max-w-lg mx-auto space-y-6">
+    <div className="space-y-6 pb-36 animate-in slide-in-from-right duration-300">
        <div>
           <span className="text-[10px] font-mono text-brand-500 uppercase tracking-widest">Equipamentos & Nutrição</span>
           <h2 className="font-heading font-bold text-3xl text-white uppercase">Supply Drop</h2>
        </div>
 
-       <div className="grid grid-cols-2 gap-4">
+       {/* Responsive Grid: 2 cols mobile, 3 cols tablet, 4 cols desktop */}
+       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
           {MOCK_PRODUCTS.map(product => (
             <ProductCard key={product.id} product={product} onAddToCart={handleBuyProduct} />
           ))}
@@ -587,18 +650,105 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
     <div className="min-h-screen bg-black text-white selection:bg-brand-500 selection:text-white font-sans relative">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Current Active Tab */}
-      {currentTab === 'home' && renderHome()}
-      {currentTab === 'explore' && renderExplore()}
-      {currentTab === 'wellness' && renderWellness()}
-      {currentTab === 'credits' && renderCredits()}
-      {currentTab === 'shop' && renderShop()}
+      {/* TOPBAR (Visible on Desktop / Tablets) */}
+      <nav className="border-b border-white/10 bg-onyx-900/50 backdrop-blur sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleTabChange('home')}>
+              <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center text-black font-heading font-bold text-sm shadow-[0_0_15px_rgba(255,82,0,0.4)]">
+                XP
+              </div>
+              <span className="font-heading font-bold text-lg text-white uppercase tracking-wider hidden sm:inline">XPASS</span>
+            </div>
+
+            {/* Desktop Navigation Links */}
+            <div className="hidden md:flex items-center gap-1 bg-onyx-950 p-1.5 rounded-xl border border-white/10">
+              {[
+                { id: 'home', label: 'Início' },
+                { id: 'explore', label: 'Buscar Estúdios' },
+                { id: 'wellness', label: 'Meu Plano' },
+                { id: 'credits', label: 'Créditos' },
+                { id: 'shop', label: 'Supply Drop' },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => handleTabChange(item.id as Tab)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-heading uppercase tracking-wide transition-all cursor-pointer ${
+                    currentTab === item.id 
+                      ? 'bg-brand-500 text-black font-bold shadow-[0_0_15px_rgba(255,82,0,0.3)]' 
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* View Mode Toggle: Smartphone vs Desktop */}
+            <div className="hidden lg:flex items-center bg-onyx-950 p-1 rounded-xl border border-white/10 text-xs font-mono">
+              <button
+                onClick={() => setViewMode('responsive')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer transition-all ${
+                  viewMode === 'responsive' ? 'bg-white/10 text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title="Modo Tela Cheia Responsiva"
+              >
+                <Monitor size={14} /> Desktop
+              </button>
+              <button
+                onClick={() => setViewMode('mobile-mockup')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer transition-all ${
+                  viewMode === 'mobile-mockup' ? 'bg-brand-500 text-black font-bold' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title="Simular visualização em smartphone"
+              >
+                <Smartphone size={14} /> Simular Celular
+              </button>
+            </div>
+
+            {/* Quick Digital Pass */}
+            <button
+              onClick={() => setIsPassModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500 hover:text-black transition-all text-xs font-heading font-bold uppercase cursor-pointer"
+            >
+              <QrCode size={14} /> Passe
+            </button>
+
+            {/* Return to Portal Hub */}
+            <button
+              onClick={onReturnToPortal}
+              className="px-2.5 py-1.5 rounded-lg bg-onyx-800 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-mono transition-colors cursor-pointer border border-white/5"
+              title="Voltar ao Portal Hub"
+            >
+              Hub
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* CONTENT WRAPPER */}
+      <div className={viewMode === 'mobile-mockup' ? 'max-w-sm mx-auto my-6 border-4 border-zinc-700/80 rounded-[48px] p-4 bg-black shadow-[0_0_80px_rgba(255,82,0,0.15)] relative overflow-hidden ring-1 ring-white/10' : 'w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'}>
+        {viewMode === 'mobile-mockup' && (
+          <div className="w-24 h-4 bg-zinc-900 rounded-full mx-auto mb-4 border border-white/10" />
+        )}
+
+        {/* Current Active Tab */}
+        {currentTab === 'home' && renderHome()}
+        {currentTab === 'explore' && renderExplore()}
+        {currentTab === 'wellness' && renderWellness()}
+        {currentTab === 'credits' && renderCredits()}
+        {currentTab === 'shop' && renderShop()}
+      </div>
 
       {/* Floating AI Coach */}
       <AICoach onSelectStudio={handleStudioClick} />
 
-      {/* Floating Bottom Nav */}
-      <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
+      {/* Floating Bottom Nav (Shown on Mobile or in Mobile Mockup mode) */}
+      <div className={viewMode === 'mobile-mockup' ? 'block' : 'md:hidden'}>
+        <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
+      </div>
 
       {/* MODAL: STUDIO DETAILS & BOOKING */}
       {selectedStudio && (
