@@ -13,6 +13,7 @@ import ToastContainer, { ToastMessage } from './components/Toast';
 import { Tab, Studio, Product } from './types';
 import { MOCK_USER, STUDIOS, UPCOMING_CLASSES, ACTIVITY_CATEGORIES, MOCK_PRODUCTS, INITIAL_MACROS, INITIAL_WORKOUT, INITIAL_MEALS } from './constants';
 import { getStoredUser, saveStoredUser, getStoredBookings, saveBooking } from './services/storage';
+import { supabase } from './lib/supabase';
 
 interface StudentAppProps {
   onReturnToPortal: () => void;
@@ -29,6 +30,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
   const [currentUser, setCurrentUser] = useState(getStoredUser());
   const [userCredits, setUserCredits] = useState(currentUser.credits);
   const [bookings, setBookings] = useState(getStoredBookings());
+  const [studios, setStudios] = useState<Studio[]>(STUDIOS);
   
   // Modals
   const [selectedStudio, setSelectedStudio] = useState<Studio | null>(null);
@@ -50,6 +52,34 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
     saveStoredUser(updated);
   }, [userCredits]);
 
+  // Load studios from Supabase with fallback to constants
+  useEffect(() => {
+    async function loadStudios() {
+      try {
+        const { data, error } = await supabase.from('studios').select('*');
+        if (!error && data && data.length > 0) {
+          const mapped: Studio[] = data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            rating: Number(item.rating) || 4.8,
+            distance: item.distance || '1.0 km',
+            imageUrl: item.image_url,
+            creditCost: item.credit_cost,
+            isOpen: item.is_open,
+            address: item.address,
+            description: item.description,
+            amenities: item.amenities || []
+          }));
+          setStudios(mapped);
+        }
+      } catch (err) {
+        console.warn('Usando catálogo local de estúdios:', err);
+      }
+    }
+    loadStudios();
+  }, []);
+
   // Toast Helper
   const addToast = (type: 'success' | 'error' | 'info', title: string, message?: string) => {
     const id = Date.now().toString();
@@ -61,7 +91,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
   };
 
   // Filter Studios
-  const filteredStudios = STUDIOS.filter(studio => {
+  const filteredStudios = studios.filter(studio => {
     const matchesCategory = selectedCategory === 'Todos' || studio.category === selectedCategory;
     const matchesSearch = studio.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           studio.category.toLowerCase().includes(searchQuery.toLowerCase());
@@ -72,7 +102,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 800); 
+    }, 600); 
     return () => clearTimeout(timer);
   }, []);
 
@@ -101,7 +131,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
     setIsBookingSuccess(false);
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     if (selectedStudio && userCredits >= selectedStudio.creditCost) {
        const newBalance = userCredits - selectedStudio.creditCost;
        setUserCredits(newBalance);
@@ -118,6 +148,20 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
        };
        const updatedList = saveBooking(newBooking);
        setBookings(updatedList);
+
+       // Save to Supabase if UUID
+       try {
+         if (selectedStudio.id.includes('-')) {
+           await supabase.from('bookings').insert({
+             studio_id: selectedStudio.id,
+             studio_name: selectedStudio.name,
+             credit_cost: selectedStudio.creditCost,
+             status: 'confirmed'
+           });
+         }
+       } catch (err) {
+         console.debug('Reserva sincronizada localmente');
+       }
 
        addToast('success', 'Reserva Confirmada!', `Você agendou em ${selectedStudio.name}. Saldo: ${newBalance} CR`);
 
@@ -285,7 +329,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
           <span className="text-xs font-mono text-zinc-500">São Paulo, SP</span>
         </div>
         <div className="px-6 flex flex-col gap-4">
-          {STUDIOS.slice(0, 4).map((studio) => (
+          {studios.slice(0, 4).map((studio) => (
             <StudioCard key={studio.id} studio={studio} onClick={() => handleStudioClick(studio)} />
           ))}
         </div>
