@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, SlidersHorizontal, ShoppingBag, Zap, ChevronLeft, Settings, Clock, Heart, Users, Award, LogOut, ChevronRight, X, Calendar, MapPin, Check, Plus, Flame, Utensils, Scan, CreditCard as CardIcon } from 'lucide-react';
+import { Bell, Search, SlidersHorizontal, ShoppingBag, Zap, ChevronLeft, Settings, Clock, Heart, Users, Award, LogOut, ChevronRight, X, Calendar, MapPin, Check, Plus, Flame, Utensils, Scan, CreditCard as CardIcon, QrCode, ShieldCheck } from 'lucide-react';
 import BottomNav from './components/BottomNav';
 import CreditCard from './components/CreditCard';
+import QuickActions from './components/QuickActions';
 import StudioCard from './components/StudioCard';
 import CategoryGrid from './components/CategoryGrid';
 import FeatureCard from './components/FeatureCard';
@@ -37,6 +38,7 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
   const [isBookingSuccess, setIsBookingSuccess] = useState(false);
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isPassModalOpen, setIsPassModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Wellness States
@@ -124,6 +126,16 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
      if (currentTab === 'home') {
         setCurrentTab('explore');
      }
+  };
+
+  const handleQuickAction = (actionId: string) => {
+    if (actionId === 'checkin' || actionId === 'pass') {
+      setIsPassModalOpen(true);
+    } else if (actionId === 'map') {
+      setCurrentTab('explore');
+    } else if (actionId === 'coach') {
+      addToast('info', 'AI Coach Ativo', 'Toque no ícone do robô no canto inferior direito para conversar com o Coach.');
+    }
   };
 
   const handleStudioClick = (studio: Studio) => {
@@ -276,6 +288,11 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
           onRecharge={() => setIsRechargeModalOpen(true)} 
           onViewHistory={() => setIsHistoryModalOpen(true)}
         />
+      </section>
+
+      {/* Quick Actions Bar */}
+      <section className="px-6">
+        <QuickActions onAction={handleQuickAction} />
       </section>
 
       {/* Upcoming Bookings */}
@@ -792,6 +809,96 @@ const StudentApp: React.FC<StudentAppProps> = ({ onReturnToPortal }) => {
                     <LogOut size={16} /> Trocar Interface (Portal)
                  </button>
               </div>
+           </div>
+        </div>
+      )}
+
+      {/* MODAL: DIGITAL PASS / QR CODE */}
+      {isPassModalOpen && (
+        <div className="fixed inset-0 z-[85] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+           <div className="w-full max-w-sm bg-onyx-900 border border-brand-500/40 rounded-3xl p-6 text-center space-y-5 animate-in zoom-in-95 duration-200 shadow-[0_0_50px_rgba(255,82,0,0.25)] relative overflow-hidden">
+              
+              {/* Background ambient glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex justify-between items-center relative z-10">
+                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-500/10 border border-brand-500/30 text-[10px] font-mono uppercase text-brand-400">
+                    <ShieldCheck size={12} /> Passe Oficial Ativo
+                 </div>
+                 <button onClick={() => setIsPassModalOpen(false)} className="text-zinc-500 hover:text-white cursor-pointer p-1">
+                    <X size={20} />
+                 </button>
+              </div>
+
+              {/* Student Identification */}
+              <div className="relative z-10 flex flex-col items-center">
+                 <img src={currentUser.avatarUrl} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-brand-500 object-cover shadow-lg mb-2" />
+                 <h3 className="font-heading font-bold text-xl uppercase text-white tracking-wide">{currentUser.name}</h3>
+                 <span className="text-xs font-mono text-brand-500">{currentUser.plan} • {userCredits} CR</span>
+              </div>
+
+              {/* QR Code Container with High Tech Laser */}
+              <div className="relative z-10 p-5 bg-white rounded-2xl mx-auto w-56 h-56 flex flex-col items-center justify-center shadow-2xl overflow-hidden group">
+                 {/* Laser scan animation */}
+                 <div className="absolute top-0 left-0 right-0 h-1 bg-brand-500 shadow-[0_0_12px_#FF5200] animate-[bounce_2.5s_infinite] pointer-events-none" />
+                 
+                 {/* Stylized QR Code SVG */}
+                 <svg viewBox="0 0 100 100" className="w-full h-full text-black">
+                    {/* Corner Position Detection Patterns */}
+                    <rect x="5" y="5" width="26" height="26" fill="black" rx="3" />
+                    <rect x="9" y="9" width="18" height="18" fill="white" rx="2" />
+                    <rect x="13" y="13" width="10" height="10" fill="black" rx="1" />
+
+                    <rect x="69" y="5" width="26" height="26" fill="black" rx="3" />
+                    <rect x="73" y="9" width="18" height="18" fill="white" rx="2" />
+                    <rect x="77" y="13" width="10" height="10" fill="black" rx="1" />
+
+                    <rect x="5" y="69" width="26" height="26" fill="black" rx="3" />
+                    <rect x="9" y="73" width="18" height="18" fill="white" rx="2" />
+                    <rect x="13" y="77" width="10" height="10" fill="black" rx="1" />
+
+                    {/* Data Matrix Dots */}
+                    <rect x="36" y="8" width="6" height="6" fill="black" />
+                    <rect x="46" y="8" width="6" height="6" fill="black" />
+                    <rect x="56" y="16" width="6" height="6" fill="black" />
+                    <rect x="36" y="24" width="6" height="6" fill="black" />
+                    <rect x="46" y="32" width="8" height="8" fill="#FF5200" rx="1" />
+                    
+                    <rect x="12" y="38" width="6" height="6" fill="black" />
+                    <rect x="24" y="44" width="6" height="6" fill="black" />
+                    <rect x="34" y="48" width="6" height="6" fill="black" />
+                    <rect x="60" y="36" width="6" height="6" fill="black" />
+                    <rect x="74" y="42" width="6" height="6" fill="black" />
+                    <rect x="84" y="48" width="6" height="6" fill="black" />
+
+                    <rect x="38" y="64" width="6" height="6" fill="black" />
+                    <rect x="48" y="72" width="6" height="6" fill="black" />
+                    <rect x="62" y="66" width="6" height="6" fill="black" />
+                    <rect x="76" y="74" width="6" height="6" fill="black" />
+                    <rect x="86" y="84" width="6" height="6" fill="black" />
+                    <rect x="48" y="86" width="6" height="6" fill="black" />
+                 </svg>
+
+                 {/* Center Brand Badge */}
+                 <div className="absolute inset-0 m-auto w-10 h-10 bg-black rounded-lg border border-brand-500 flex items-center justify-center shadow-lg">
+                    <span className="font-heading font-bold text-xs text-brand-500">XP</span>
+                 </div>
+              </div>
+
+              <div className="space-y-1 relative z-10">
+                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block">Token Dinâmico de Acesso</span>
+                 <p className="font-mono text-sm font-bold text-white tracking-widest">{currentUser.referralCode}-PASS</p>
+                 <p className="text-[11px] font-mono text-zinc-400 mt-2">
+                    Apresente na recepção da academia parceira para validação instantânea no leitor.
+                 </p>
+              </div>
+
+              <button 
+                onClick={() => setIsPassModalOpen(false)}
+                className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-heading font-bold text-xs uppercase rounded-xl transition-colors cursor-pointer"
+              >
+                 Fechar Passe
+              </button>
            </div>
         </div>
       )}

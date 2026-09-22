@@ -114,9 +114,19 @@ const App: React.FC = () => {
            </button>
         </div>
 
-        <div className="text-center pt-4">
-           <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">
-              XPASS Fitness Ecosystem • Pronto para deploy na Vercel
+        <div className="text-center pt-6 space-y-2">
+           <a 
+             href="https://ecapx.tech/" 
+             target="_blank" 
+             rel="noopener noreferrer"
+             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-brand-500/50 text-zinc-400 hover:text-white transition-all text-[11px] font-mono group shadow-lg"
+           >
+              <span>Engenharia por</span>
+              <span className="text-brand-500 font-bold group-hover:underline">ECAPX</span>
+              <span className="text-[10px] text-zinc-500">↗ ecapx.tech</span>
+           </a>
+           <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest block">
+              XPASS OS v2.0 • Arquitetura SaaS Multilateral
            </p>
         </div>
       </div>
